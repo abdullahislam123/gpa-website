@@ -546,16 +546,31 @@
         }
 
         async function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            try {
-                const result = await auth.signInWithPopup(provider);
-                const user = result.user;
-                if (!user.email.endsWith('@superior.edu.pk')) {
-                    await auth.signOut();
-                    return alert("Access Denied: Only @superior.edu.pk accounts allowed!");
-                }
-            } catch (err) { alert(err.message); }
+    const provider = new firebase.auth.GoogleAuthProvider();
+    
+    // Mobile compatibility check
+    if (window.innerWidth <= 768) {
+        // Mobile par Redirect use hoga
+        try {
+            await auth.signInWithRedirect(provider);
+        } catch (err) {
+            console.error("Redirect Error:", err);
+            alert("Login error: " + err.message);
         }
+    } else {
+        // Desktop par Popup chalne dein
+        try {
+            const result = await auth.signInWithPopup(provider);
+            const user = result.user;
+            if (!user.email.endsWith('@superior.edu.pk')) {
+                await auth.signOut();
+                alert("Access Denied: @superior.edu.pk only!");
+            }
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+}
 
         // Firebase Auth State Listener
         auth.onAuthStateChanged(user => {
