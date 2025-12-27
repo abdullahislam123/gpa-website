@@ -461,7 +461,7 @@
     </div>
 
     <script>
-        // --- FIREBASE CONFIGURATION (Abdullah, apni details yahan paste karein) ---
+        // --- FIREBASE CONFIGURATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyBQfE_ubdiP5DJSkvwLNHzptlNI85MK8ys",
             authDomain: "super-gpa-calc.firebaseapp.com",
@@ -495,6 +495,24 @@
         let semesterData = [];
         let isEmailVisible = false;
 
+        // --- AUTH REDIRECT HANDLER (Critical for Mobile) ---
+        auth.getRedirectResult().then((result) => {
+            if (result.user) {
+                if (result.user.email.endsWith('@superior.edu.pk')) {
+                    activeUser = result.user;
+                    activeEmail = result.user.email;
+                    initDashboard();
+                } else {
+                    alert("Access Denied: Use @superior.edu.pk email only!");
+                    auth.signOut();
+                }
+            }
+        }).catch((error) => {
+            if (error.code !== 'auth/unauthorized-domain') {
+                console.error("Redirect Login Error:", error.message);
+            }
+        });
+
         // --- PDF/EXCEL IMPORT LOGIC ---
         async function handlePdfUpload(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -525,7 +543,7 @@
             alert("PDF Data Imported!");
         }
 
-        // --- AUTH LOGIC (Updated with Firebase) ---
+        // --- AUTH LOGIC ---
         function toggleAuthMode(m) { const p = document.getElementById('authPage'); if (m === 'register') { p.classList.add('register-mode'); document.getElementById('loginForm').style.display = 'none'; document.getElementById('regForm').style.display = 'block'; } else { p.classList.remove('register-mode'); document.getElementById('loginForm').style.display = 'block'; document.getElementById('regForm').style.display = 'none'; } }
         function togglePass(id, el) { const i = document.getElementById(id); i.type = i.type === "password" ? "text" : "password"; el.innerText = i.type === "password" ? "👁️" : "🔒"; }
         function toggleEmailDisplay() { isEmailVisible = !isEmailVisible; document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••"; }
@@ -544,30 +562,20 @@
                 }
             } catch (err) { alert(err.message); }
         }
-        // 4. Sub-Subject Logic (Consistent deletion)
-        function deleteSub(semId, subIdx) {
-            const sem = semesterData.find(s => s.id === semId);
-            if (sem) {
-                sem.subjects.splice(subIdx, 1);
-                saveAndRender();
-            }
-        }
 
         async function loginWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' }); // Ensures account chooser appears
+            provider.setCustomParameters({ prompt: 'select_account' });
 
             if (window.innerWidth <= 768) {
                 try {
                     await auth.signInWithRedirect(provider);
                 } catch (err) {
-                    console.error("Redirect Error:", err);
-                    alert("Login error: " + err.message);
+                    alert("Redirect Error: " + err.message);
                 }
             } else {
                 try {
-                    const result = await auth.signInWithPopup(provider);
-                    // User filtering logic is now handled in onAuthStateChanged for better security
+                    await auth.signInWithPopup(provider);
                 } catch (err) {
                     alert(err.message);
                 }
@@ -577,58 +585,43 @@
         // Firebase Auth State Listener
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                // Email Validation
                 if (!user.email.endsWith('@superior.edu.pk')) {
                     alert("Access Denied: Use @superior.edu.pk email only!");
                     await auth.signOut();
                     return;
                 }
-
                 activeUser = user;
                 activeEmail = user.email;
-                document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••";
-
-                // Load Data and UI
                 await initDashboard();
             } else {
                 document.getElementById('authPage').style.display = 'flex';
                 document.getElementById('mainDashboard').style.display = 'none';
-                semesterData = []; // Clear local state on logout
+                semesterData = [];
             }
         });
 
         async function initDashboard() {
             document.getElementById('authPage').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'block';
-
-            // Load data from Firestore
             const doc = await db.collection("users").doc(activeUser.uid).get();
-            if (doc.exists) {
-                semesterData = doc.data().semesters || [];
-            } else {
-                semesterData = [];
-            }
+            semesterData = doc.exists ? (doc.data().semesters || []) : [];
             render();
         }
 
         async function logout() { await auth.signOut(); location.reload(); }
-
         function clearDashboard() { if (confirm('Erase everything?')) { semesterData = []; saveAndRender(); } }
 
-        // 3. Robust Save function (Prevents data loss)
         async function saveAndRender() {
             if (activeUser) {
                 try {
                     await db.collection("users").doc(activeUser.uid).set({
                         semesters: semesterData,
                         lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-                        email: activeEmail // Keeping email in DB for admin reference
+                        email: activeEmail
                     }, { merge: true });
                     render();
                 } catch (error) {
                     console.error("Cloud Sync Failed:", error);
-                    // Fallback to local storage if internet fails
-                    localStorage.setItem(`backup_${activeUser.uid}`, JSON.stringify(semesterData));
                 }
             }
         }
