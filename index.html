@@ -515,28 +515,40 @@
         });
 
         // --- 2. AUTH STATE LISTENER (UI Loop Fix) ---
+        // --- IMPROVED AUTH LISTENER ---
         auth.onAuthStateChanged(async (user) => {
             const loginPage = document.getElementById('authPage');
             const dashboard = document.getElementById('mainDashboard');
 
             if (user) {
+                // Debug Alert 1: Check karein ke user detect hua ya nahi
+                console.log("User detected:", user.email);
+
                 const email = user.email.toLowerCase();
                 if (email.endsWith('@superior.edu.pk')) {
                     activeUser = user;
                     activeEmail = email;
 
-                    // Foran UI switch karein taake loop na baney
-                    loginPage.style.display = 'none';
-                    dashboard.style.display = 'block';
+                    // FORCE UI SWITCH: !important use karein taake CSS override ho sake
+                    loginPage.style.setProperty('display', 'none', 'important');
+                    dashboard.style.setProperty('display', 'block', 'important');
 
-                    await initDashboard();
+                    // Data load hone ka intezar karein lekin dashboard hide na karein
+                    try {
+                        await initDashboard();
+                    } catch (error) {
+                        console.error("Dashboard init error:", error);
+                        // Agar data load na ho, tab bhi dashboard dikhayein
+                        render();
+                    }
                 } else {
-                    alert("Access Denied: @superior.edu.pk only!");
+                    alert("Access Denied: Sirf @superior.edu.pk IDs allow hain!");
                     await auth.signOut();
                 }
             } else {
-                loginPage.style.display = 'flex';
-                dashboard.style.display = 'none';
+                // Logout state
+                loginPage.style.setProperty('display', 'flex', 'important');
+                dashboard.style.setProperty('display', 'none', 'important');
                 activeUser = null;
                 semesterData = [];
             }
