@@ -497,7 +497,7 @@
 
         // --- AUTH REDIRECT HANDLER (Critical for Mobile) ---
         auth.getRedirectResult().then((result) => {
-            if (result.user) {
+            if (result && result.user) {
                 if (result.user.email.endsWith('@superior.edu.pk')) {
                     activeUser = result.user;
                     activeEmail = result.user.email;
@@ -508,8 +508,9 @@
                 }
             }
         }).catch((error) => {
+            console.error("Redirect Error:", error);
             if (error.code !== 'auth/unauthorized-domain') {
-                console.error("Redirect Login Error:", error.message);
+                alert("Mobile Login Error: " + error.message);
             }
         });
 
@@ -548,37 +549,59 @@
         function togglePass(id, el) { const i = document.getElementById(id); i.type = i.type === "password" ? "text" : "password"; el.innerText = i.type === "password" ? "👁️" : "🔒"; }
         function toggleEmailDisplay() { isEmailVisible = !isEmailVisible; document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••"; }
 
+        // 2. Handle Manual Auth: Isme maine Provider check dal diya hai
         async function handleAuth(t) {
             const e = document.getElementById(t === 'login' ? 'loginEmail' : 'regEmail').value.trim().toLowerCase();
             const p = document.getElementById(t === 'login' ? 'loginPass' : 'regPass').value;
+
             if (!e.endsWith('@superior.edu.pk')) return alert("Access Denied: @superior.edu.pk only!");
+            if (p.length < 6) return alert("Password must be at least 6 characters.");
 
             try {
                 if (t === 'signup') {
                     await auth.createUserWithEmailAndPassword(e, p);
-                    alert("Account Created!"); toggleAuthMode('login');
+                    alert("Account Created successfully! Now Login.");
+                    toggleAuthMode('login');
                 } else {
                     await auth.signInWithEmailAndPassword(e, p);
                 }
-            } catch (err) { alert(err.message); }
-        }
-
-        async function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-
-            if (window.innerWidth <= 768) {
-                try {
-                    await auth.signInWithRedirect(provider);
-                } catch (err) {
-                    alert("Redirect Error: " + err.message);
-                }
-            } else {
-                try {
-                    await auth.signInWithPopup(provider);
-                } catch (err) {
+            } catch (err) {
+                // Agar account Google wala hai aur aap manual login kar rahe hain
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+                    alert("Login Failed: Aapka account Google se linked hai. Meharbani karke 'Sign in with Google' button dabayein.");
+                } else if (err.code === 'auth/email-already-in-use') {
+                    alert("Ye Email pehle se register hai. Login page par ja kar Google button use karein.");
+                } else {
                     alert(err.message);
                 }
+            }
+        }
+
+        // 3. Google Login: Mobile ke liye Redirect aur Desktop ke liye Popup
+        async function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({
+                prompt: 'select_account',
+                hd: 'superior.edu.pk' // Sirf superior ki IDs select karne dega
+            });
+
+            try {
+                if (window.innerWidth <= 768) {
+                    // Mobile par popup block hota hai, isliye redirect use karein
+                    await auth.signInWithRedirect(provider);
+                } else {
+                    const result = await auth.signInWithPopup(provider);
+                    if (result.user.email.endsWith('@superior.edu.pk')) {
+                        activeUser = result.user;
+                        activeEmail = result.user.email;
+                        initDashboard();
+                    } else {
+                        alert("Only @superior.edu.pk accounts allowed!");
+                        await auth.signOut();
+                    }
+                }
+            } catch (err) {
+                alert("Google Auth Error: " + err.message);
             }
         }
 
