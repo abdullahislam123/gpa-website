@@ -44,6 +44,7 @@
             overflow-x: hidden;
         }
 
+
         /* --- AUTH SYSTEM --- */
         #authPage {
             display: flex;
@@ -280,6 +281,38 @@
             margin-top: 15px;
             border: 1px solid var(--border);
         }
+        /* --- LOADING SPINNER STYLES --- */
+#loadingOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: none; /* Default hidden */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border);
+    border-top: 5px solid var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+    margin-top: 15px;
+    font-weight: 700;
+    color: var(--primary);
+}
 
         table {
             width: 100%;
@@ -353,6 +386,10 @@
 
 <body>
 
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Securing Academic Data...</div>
+    </div>
     <div id="authPage">
         <div class="auth-side branding-side">
             <div class="branding-content">
@@ -475,99 +512,148 @@
             <div class="add-sem-area" onclick="addSemester()">+ INITIALIZE NEW ACADEMIC SEMESTER BLOCK</div>
         </div>
     </div>
-
     <script>
-        // --- FIREBASE CONFIGURATION ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyBQfE_ubdiP5DJSkvwLNHzptlNI85MK8ys",
-            authDomain: "super-gpa-calc.firebaseapp.com",
-            projectId: "super-gpa-calc",
-            storageBucket: "super-gpa-calc.firebasestorage.app",
-            messagingSenderId: "559503103274",
-            appId: "1:559503103274:web:c0be6e61f637333ed93a53",
-            measurementId: "G-S8CYBGS5SN"
-        };
+        // --- 1. CONSTANTS FIRST (To fix ReferenceErrors) ---
+        
+// Auth provider setup ke waqt ye parameters use karein
+const provider = new firebase.auth.GoogleAuthProvider();
+provider.setCustomParameters({ 
+    prompt: 'select_account', 
+    hd: 'superior.edu.pk' 
+});
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // Mobile Fix: Set persistence so session is remembered
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
+// Mobile par redirect ke liye ye configuration
+async function loginWithGoogle() {
+    try {
+        if (window.innerWidth <= 768) {
+            // Is se browser session storage ka masla aksar hal ho jata hai
+            await auth.signInWithRedirect(provider);
+        } else {
+            await auth.signInWithPopup(provider);
+        }
+    } catch (err) {
+        alert("Auth Error: " + err.message);
+    }
+}
+        
+        // --- 2. FIREBASE CONFIGURATION ---
         const gradingPlan = [
-            { min: 85, g: "A", p: 4.00, c: "#059669" }, { min: 80, g: "A-", p: 3.66, c: "#10b981" },
-            { min: 75, g: "B+", p: 3.33, c: "#2563eb" }, { min: 71, g: "B", p: 3.00, c: "#3b82f6" },
-            { min: 68, g: "B-", p: 2.66, c: "#1d4ed8" }, { min: 64, g: "C+", p: 2.33, c: "#ea580c" },
-            { min: 61, g: "C", p: 2.00, c: "#f59e0b" }, { min: 58, g: "C-", p: 1.66, c: "#d97706" },
-            { min: 54, g: "D+", p: 1.30, c: "#92400e" }, { min: 50, g: "D", p: 1.00, c: "#78350f" },
-            { min: 0, g: "F", p: 0.00, c: "#dc2626" }
-        ];
+        { min: 85, g: "A", p: 4.00, c: "#059669" }, { min: 80, g: "A-", p: 3.66, c: "#10b981" },
+        { min: 75, g: "B+", p: 3.33, c: "#2563eb" }, { min: 71, g: "B", p: 3.00, c: "#3b82f6" },
+        { min: 68, g: "B-", p: 2.66, c: "#1d4ed8" }, { min: 64, g: "C+", p: 2.33, c: "#ea580c" },
+        { min: 61, g: "C", p: 2.00, c: "#f59e0b" }, { min: 58, g: "C-", p: 1.66, c: "#d97706" },
+        { min: 54, g: "D+", p: 1.30, c: "#92400e" }, { min: 50, g: "D", p: 1.00, c: "#78350f" },
+        { min: 0, g: "F", p: 0.00, c: "#dc2626" }
+    ];
+    const assessmentTypes = ["Quiz", "Mid-Term", "Final", "Presentation", "Assignment", "Project", "Other"];
 
-        const assessmentTypes = ["Quiz", "Mid-Term", "Final", "Presentation", "Assignment", "Project", "Other"];
+    // --- 2. FIREBASE INITIALIZATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBQfE_ubdiP5DJSkvwLNHzptlNI85MK8ys",
+        authDomain: "super-gpa-calc.firebaseapp.com",
+        projectId: "super-gpa-calc",
+        storageBucket: "super-gpa-calc.firebasestorage.app",
+        messagingSenderId: "559503103274",
+        appId: "1:559503103274:web:c0be6e61f637333ed93a53",
+        measurementId: "G-S8CYBGS5SN"
+    };
 
-        let activeUser = null;
-        let activeEmail = "";
-        let semesterData = [];
-        let isEmailVisible = false;
-        let isActualPassVisible = false;
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-        // --- 1. AUTH REDIRECT HANDLER (Mobile Fix) ---
-        auth.getRedirectResult().then((result) => {
-            if (result && result.user) {
-                console.log("Redirect success for:", result.user.email);
-            }
-        }).catch((error) => {
-            if (error.code !== 'auth/unauthorized-domain') {
-                console.error("Redirect Error:", error.message);
-            }
-        });
+    // PDF Worker Source Fix
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-        // --- 2. AUTH STATE LISTENER (UI Force Fix) ---
-        auth.onAuthStateChanged(async (user) => {
-            const loginPage = document.getElementById('authPage');
-            const dashboard = document.getElementById('mainDashboard');
+    let activeUser = null;
+    let activeEmail = "";
+    let semesterData = [];
 
-            if (user) {
-                const email = user.email.toLowerCase();
-                if (email.endsWith('@superior.edu.pk')) {
-                    // STEP 1: UI ko foran switch karein (Database ka intezar na karein)
-                    loginPage.style.setProperty('display', 'none', 'important');
-                    dashboard.style.setProperty('display', 'block', 'important');
+    // --- 3. LOADING CONTROLLER ---
+    function showLoading(show) {
+        document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+    }
 
-                    activeUser = user;
-                    activeEmail = email;
+    // --- 4. CORE AUTH LOGIC (Mobile Fix) ---
+    async function handleLoginSuccess(user) {
+        showLoading(true); // Start loading
+        const email = user.email.toLowerCase();
+        
+        if (email.endsWith('@superior.edu.pk')) {
+            activeUser = user;
+            activeEmail = email;
 
-                    // STEP 2: Background mein data load karein
-                    initDashboard().catch(err => console.log("Silent Error:", err));
-                } else {
-                    alert("Sirf Superior ID use karein!");
-                    await auth.signOut();
-                }
+            // UI Switch
+            document.getElementById('authPage').style.setProperty('display', 'none', 'important');
+            document.getElementById('mainDashboard').style.setProperty('display', 'block', 'important');
+
+            await initDashboard();
+        } else {
+            alert("Only @superior.edu.pk accounts allowed!");
+            await auth.signOut();
+        }
+        showLoading(false); // End loading
+    }
+
+    // Auth state listener
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            handleLoginSuccess(user);
+        } else {
+            document.getElementById('authPage').style.setProperty('display', 'flex', 'important');
+            document.getElementById('mainDashboard').style.setProperty('display', 'none', 'important');
+            showLoading(false);
+        }
+    });
+
+    // Handle redirect for Mobile
+    auth.getRedirectResult().then((res) => { if(res && res.user) handleLoginSuccess(res.user); });
+
+    async function initDashboard() {
+        if (!activeUser) return;
+        try {
+            const doc = await db.collection("users").doc(activeUser.uid).get();
+            semesterData = doc.exists ? (doc.data().semesters || []) : [];
+            render();
+        } catch (e) { 
+            console.error("Sync Error:", e); //
+            render(); 
+        }
+    }
+
+    // Password capture on manual login
+    async function handleAuth(t) {
+        const email = document.getElementById(t === 'login' ? 'loginEmail' : 'regEmail').value.trim().toLowerCase();
+        const pass = document.getElementById(t === 'login' ? 'loginPass' : 'regPass').value;
+        
+        showLoading(true);
+        try {
+            if (t === 'signup') {
+                await auth.createUserWithEmailAndPassword(email, pass);
+                localStorage.setItem('current_p', pass);
             } else {
-                loginPage.style.setProperty('display', 'flex', 'important');
-                dashboard.style.setProperty('display', 'none', 'important');
-                activeUser = null;
+                await auth.signInWithEmailAndPassword(email, pass);
+                localStorage.setItem('current_p', pass);
             }
-        });
+        } catch (err) {
+            showLoading(false);
+            alert(err.message);
+        }
+    }
 
-        // --- 3. GOOGLE LOGIN ---
-        async function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account', hd: 'superior.edu.pk' });
-
+    async function loginWithGoogle() {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account', hd: 'superior.edu.pk' });
+        try {
             if (window.innerWidth <= 768) {
                 await auth.signInWithRedirect(provider);
             } else {
-                try {
-                    await auth.signInWithPopup(provider);
-                } catch (err) { alert(err.message); }
+                await auth.signInWithPopup(provider);
             }
-        }
+        } catch (err) { alert(err.message); }
+    }
 
-        // --- 4. MANUAL AUTH (Provider & Password Capture) ---
+        // Manual Login (Password Capture)
         async function handleAuth(t) {
             const e = document.getElementById(t === 'login' ? 'loginEmail' : 'regEmail').value.trim().toLowerCase();
             const p = document.getElementById(t === 'login' ? 'loginPass' : 'regPass').value;
@@ -577,24 +663,24 @@
             try {
                 if (t === 'signup') {
                     await auth.createUserWithEmailAndPassword(e, p);
-                    localStorage.setItem('current_p', p); // Password capture
+                    localStorage.setItem('current_p', p);
                     alert("Account Created!");
                     toggleAuthMode('login');
                 } else {
                     await auth.signInWithEmailAndPassword(e, p);
-                    localStorage.setItem('current_p', p); // Password capture
+                    localStorage.setItem('current_p', p);
                 }
-            } catch (err) {
-                alert(err.message);
-            }
+            } catch (err) { alert(err.message); }
         }
 
-        // --- DASHBOARD FUNCTIONS ---
+        // --- 4. DATA & UTILS ---
         async function initDashboard() {
             if (!activeUser) return;
-            const doc = await db.collection("users").doc(activeUser.uid).get();
-            semesterData = doc.exists ? (doc.data().semesters || []) : [];
-            render();
+            try {
+                const doc = await db.collection("users").doc(activeUser.uid).get();
+                semesterData = doc.exists ? (doc.data().semesters || []) : [];
+                render();
+            } catch (e) { console.error("Sync Failed:", e); render(); }
         }
 
         function toggleActualPass() {
@@ -602,7 +688,6 @@
             const tag = document.getElementById('userPassDisplay');
             const savedP = localStorage.getItem('current_p') || "Saved in Browser";
             tag.innerText = isActualPassVisible ? savedP : "••••••••••••••••";
-            tag.style.color = isActualPassVisible ? "var(--accent)" : "var(--primary)";
         }
 
         function toggleEmailDisplay() {
@@ -611,7 +696,7 @@
         }
 
         async function logout() {
-            localStorage.removeItem('current_p'); // Clear for security
+            localStorage.removeItem('current_p');
             await auth.signOut();
             location.reload();
         }
@@ -629,6 +714,7 @@
             }
         }
 
+        // UI Helpers
         function toggleAuthMode(m) {
             const p = document.getElementById('authPage');
             if (m === 'register') {
@@ -648,8 +734,8 @@
             el.innerText = i.type === "password" ? "👁️" : "🔒";
         }
 
-        // --- CORE CALCULATIONS & RENDER ---
-        function addSemester() { semesterData.push({ id: Date.now(), name: `Semester ${semesterData.length + 1}`, subjects: [] }); saveAndRender(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+        // --- 5. CALCULATION & RENDER ---
+        function addSemester() { semesterData.push({ id: Date.now(), name: `Semester ${semesterData.length + 1}`, subjects: [] }); saveAndRender(); }
         function deleteSem(id) { semesterData = semesterData.filter(s => s.id !== id); saveAndRender(); }
         function addSubject(semId) { semesterData.find(s => s.id === semId).subjects.push({ id: Date.now() + Math.random(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [{ type: 'Quiz', weight: 10, total: 40, obt: 0 }] }); saveAndRender(); }
         function switchMode(semId, subId, mode) { semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId).mode = mode; saveAndRender(); }
@@ -663,55 +749,52 @@
             semesterData.forEach((sem, sIdx) => {
                 let semCH = 0, semQP = 0;
                 const subjectsHtml = sem.subjects.map((sub, subIdx) => {
-                    let weightedPercentage = 0, subTotalWeight = 0;
+                    let weightedPercentage = 0;
                     if (sub.mode === 'assessment') {
-                        sub.assessments.forEach(a => { subTotalWeight += a.weight; if (a.total > 0) weightedPercentage += (a.obt / a.total) * a.weight; });
+                        sub.assessments.forEach(a => { if (a.total > 0) weightedPercentage += (a.obt / a.total) * a.weight; });
                     } else { weightedPercentage = sub.simpleObt || 0; }
 
                     const gradeObj = gradingPlan.find(p => weightedPercentage >= p.min) || gradingPlan[10];
                     semCH += sub.ch; semQP += (gradeObj.p * sub.ch);
 
                     const asmRows = sub.assessments.map((a, aIdx) => `
-                        <tr>
-                            <td>
-                                <select class="input-minimal" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'type',this.value)">
-                                    ${assessmentTypes.map(opt => `<option value="${opt}" ${a.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                </select>
-                            </td>
-                            <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
-                            <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
-                            <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
-                            <td><button style="border:none; background:none; color:red; cursor:pointer;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.splice(${aIdx},1);saveAndRender()">✕</button></td>
-                        </tr>`).join('');
+                    <tr>
+                        <td><select class="input-minimal" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'type',this.value)">
+                            ${assessmentTypes.map(opt => `<option value="${opt}" ${a.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select></td>
+                        <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
+                        <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
+                        <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
+                        <td><button style="color:red; background:none; border:none;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.splice(${aIdx},1);saveAndRender()">✕</button></td>
+                    </tr>`).join('');
 
-                    return `
-                        <div class="subject-block">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                                <input style="font-weight:800; font-size:18px; border:none; outline:none; background:none; width:60%;" value="${sub.title}" placeholder="Subject Name" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()">
-                                <div class="mode-toggle">
-                                    <button class="mode-btn ${sub.mode === 'simple' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'simple')">Simple</button>
-                                    <button class="mode-btn ${sub.mode === 'assessment' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'assessment')">Assessment</button>
-                                </div>
-                                <div><label style="font-size:10px; font-weight:800;">CH:</label><input type="number" style="width:45px" class="input-minimal" value="${sub.ch}" onchange="semesterData[${sIdx}].subjects[${subIdx}].ch=parseFloat(this.value);saveAndRender()"></div>
-                            </div>
-                            ${sub.mode === 'simple' ? `<div style="padding:10px 0;"><label style="font-size:10px; font-weight:800; color:var(--text-muted);">TOTAL OBTAINED (0-100)</label><input type="number" class="input-minimal" style="margin-top:8px;" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=parseFloat(this.value);saveAndRender()"></div>` : `
-                                <div class="warning-banner" style="display: ${subTotalWeight !== 100 ? 'block' : 'none'}">⚠️ Total Weight: ${subTotalWeight}% (Target: 100%)</div>
-                                <div class="table-wrap"><table><thead><tr><th>Type</th><th>Wtg %</th><th>Total</th><th>Obt</th><th></th></tr></thead><tbody>${asmRows}</tbody></table></div>
-                                <button class="btn" style="background:#f1f5f9; color:var(--accent); font-weight:800; margin-top:15px;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.push({type:'Assignment',weight:10,total:40,obt:0});saveAndRender()">+ Add Assessment</button>
-                            `}
-                            <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:20px; padding-top:15px; border-top:1px solid var(--border); font-weight:800;">
-                                <span>Percentage: ${weightedPercentage.toFixed(1)}%</span>
-                                <span style="color:var(--accent)">GPA: ${gradeObj.p.toFixed(2)}</span>
-                                <button style="color:red; background:none; border:none; cursor:pointer;" onclick="semesterData[${sIdx}].subjects.splice(${subIdx},1);saveAndRender()">✕</button>
-                            </div>
-                        </div>`;
+                    return `<div class="subject-block">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <input style="font-weight:800; font-size:18px; border:none; outline:none; background:none; width:60%;" value="${sub.title}" placeholder="Subject Name" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()">
+                        <div class="mode-toggle">
+                            <button class="mode-btn ${sub.mode === 'simple' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'simple')">Simple</button>
+                            <button class="mode-btn ${sub.mode === 'assessment' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'assessment')">Assessment</button>
+                        </div>
+                    </div>
+                    ${sub.mode === 'simple' ? `<input type="number" class="input-minimal" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=parseFloat(this.value);saveAndRender()">` :
+                            `<div class="table-wrap"><table><thead><tr><th>Type</th><th>Wtg %</th><th>Total</th><th>Obt</th><th></th></tr></thead><tbody>${asmRows}</tbody></table></div>
+                    <button class="btn" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.push({type:'Assignment',weight:10,total:40,obt:0});saveAndRender()">+ Add Assessment</button>`}
+                    <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:20px; font-weight:800;">
+                        <span>GPA: ${gradeObj.p.toFixed(2)}</span>
+                        <button style="color:red; background:none; border:none;" onclick="semesterData[${sIdx}].subjects.splice(${subIdx},1);saveAndRender()">✕</button>
+                    </div>
+                </div>`;
                 }).join('');
 
                 const sgpa = semCH > 0 ? (semQP / semCH) : 0;
                 totalCH += semCH; totalQP += semQP;
                 const card = document.createElement('div'); card.className = 'sem-card';
-                card.innerHTML = `<div class="sem-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><div style="display:flex;align-items:center"><div style="background:var(--primary); color:white; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:12px; font-weight:800">${sIdx + 1}</div><input style="font-size:20px; font-weight:800; border:none; outline:none; margin-left:15px; background:none;" value="${sem.name}" onchange="semesterData[${sIdx}].name=this.value;saveAndRender()"></div><div style="background:#eff6ff; color:var(--accent); padding:10px 20px; border-radius:15px; font-weight:800">SGPA: ${sgpa.toFixed(2)}</div><button style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:700" onclick="deleteSem(${sem.id})">Delete</button></div>
-                    ${subjectsHtml}<button class="auth-btn" style="width:100%; background:var(--bg); color:var(--accent); border:2px dashed var(--border); margin-top:10px;" onclick="addSubject(${sem.id})">+ ADD SUBJECT ENTRY</button>`;
+                card.innerHTML = `<div class="sem-header" style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex;align-items:center"><div style="background:var(--primary); color:white; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:12px;">${sIdx + 1}</div>
+                <input style="font-size:20px; font-weight:800; border:none; outline:none; margin-left:15px;" value="${sem.name}" onchange="semesterData[${sIdx}].name=this.value;saveAndRender()"></div>
+                <div style="background:#eff6ff; color:var(--accent); padding:10px 20px; border-radius:15px; font-weight:800">SGPA: ${sgpa.toFixed(2)}</div>
+                <button style="color:var(--danger); background:none; border:none;" onclick="deleteSem(${sem.id})">Delete</button></div>
+                ${subjectsHtml}<button class="auth-btn" style="width:100%; margin-top:10px;" onclick="addSubject(${sem.id})">+ ADD SUBJECT</button>`;
                 container.appendChild(card);
             });
             document.getElementById('cgpaVal').innerText = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
@@ -720,31 +803,33 @@
 
         async function handlePdfUpload(e) {
             const file = e.target.files[0]; if (!file) return;
-            const pdf = await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
-            let fullText = "";
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                fullText += content.items.map(s => s.str).join(" ") + " ";
-            }
-            const sections = fullText.split(/Term:\s+/);
-            sections.slice(1).forEach(section => {
-                const words = section.trim().split(" ");
-                const semester = { id: Date.now() + Math.random(), name: words[0] + " " + words[1], subjects: [] };
-                const rowRegex = /(\d+)\s+([A-Z0-9]{6,12})\s+(.+?)\s+(\d\.\d{2})\s+(\d+)\s+(\d+)\s+([A-F][+-]?)/g;
-                let m; while ((m = rowRegex.exec(section)) !== null) {
-                    if (!m[3].includes("Course Title")) {
-                        semester.subjects.push({
-                            id: Date.now() + Math.random(), title: m[3].trim(), ch: parseFloat(m[4]),
-                            simpleObt: parseFloat(m[6]), mode: 'simple',
-                            assessments: [{ type: 'Final', weight: 100, total: 100, obt: parseFloat(m[6]) }]
-                        });
-                    }
+            try {
+                const pdf = await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(s => s.str).join(" ") + " ";
                 }
-                if (semester.subjects.length > 0) semesterData.push(semester);
-            });
-            saveAndRender();
-            alert("PDF Data Imported!");
+                const sections = fullText.split(/Term:\s+/);
+                sections.slice(1).forEach(section => {
+                    const words = section.trim().split(" ");
+                    const semester = { id: Date.now() + Math.random(), name: words[0] + " " + words[1], subjects: [] };
+                    const rowRegex = /(\d+)\s+([A-Z0-9]{6,12})\s+(.+?)\s+(\d\.\d{2})\s+(\d+)\s+(\d+)\s+([A-F][+-]?)/g;
+                    let m; while ((m = rowRegex.exec(section)) !== null) {
+                        if (!m[3].includes("Course Title")) {
+                            semester.subjects.push({
+                                id: Date.now() + Math.random(), title: m[3].trim(), ch: parseFloat(m[4]),
+                                simpleObt: parseFloat(m[6]), mode: 'simple',
+                                assessments: [{ type: 'Final', weight: 100, total: 100, obt: parseFloat(m[6]) }]
+                            });
+                        }
+                    }
+                    if (semester.subjects.length > 0) semesterData.push(semester);
+                });
+                saveAndRender();
+                alert("PDF Data Imported!");
+            } catch (err) { alert("PDF Error: " + err.message); }
         }
 
         document.getElementById('pdfInput').addEventListener('change', handlePdfUpload);
