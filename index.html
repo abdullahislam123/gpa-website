@@ -495,12 +495,13 @@
         let semesterData = [];
         let isEmailVisible = false;
 
-        // --- AUTH REDIRECT HANDLER (Critical for Mobile) ---
+        // --- 1. AUTH REDIRECT HANDLER (Mobile Fix) ---
         auth.getRedirectResult().then((result) => {
             if (result && result.user) {
-                if (result.user.email.endsWith('@superior.edu.pk')) {
+                const email = result.user.email.toLowerCase();
+                if (email.endsWith('@superior.edu.pk')) {
                     activeUser = result.user;
-                    activeEmail = result.user.email;
+                    activeEmail = email;
                     initDashboard();
                 } else {
                     alert("Access Denied: Use @superior.edu.pk email only!");
@@ -508,13 +509,192 @@
                 }
             }
         }).catch((error) => {
-            console.error("Redirect Error:", error);
             if (error.code !== 'auth/unauthorized-domain') {
-                alert("Mobile Login Error: " + error.message);
+                console.error("Redirect Error:", error.message);
             }
         });
 
-        // --- PDF/EXCEL IMPORT LOGIC ---
+        // --- 2. AUTH STATE LISTENER (UI Loop Fix) ---
+        auth.onAuthStateChanged(async (user) => {
+            const loginPage = document.getElementById('authPage');
+            const dashboard = document.getElementById('mainDashboard');
+
+            if (user) {
+                const email = user.email.toLowerCase();
+                if (email.endsWith('@superior.edu.pk')) {
+                    activeUser = user;
+                    activeEmail = email;
+
+                    // Foran UI switch karein taake loop na baney
+                    loginPage.style.display = 'none';
+                    dashboard.style.display = 'block';
+
+                    await initDashboard();
+                } else {
+                    alert("Access Denied: @superior.edu.pk only!");
+                    await auth.signOut();
+                }
+            } else {
+                loginPage.style.display = 'flex';
+                dashboard.style.display = 'none';
+                activeUser = null;
+                semesterData = [];
+            }
+        });
+
+        // --- 3. GOOGLE LOGIN (Responsive) ---
+        async function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account', hd: 'superior.edu.pk' });
+
+            try {
+                if (window.innerWidth <= 768) {
+                    await auth.signInWithRedirect(provider);
+                } else {
+                    await auth.signInWithPopup(provider);
+                }
+            } catch (err) {
+                alert("Google Auth Error: " + err.message);
+            }
+        }
+
+        // --- 4. MANUAL AUTH (Provider Error Handling) ---
+        async function handleAuth(t) {
+            const e = document.getElementById(t === 'login' ? 'loginEmail' : 'regEmail').value.trim().toLowerCase();
+            const p = document.getElementById(t === 'login' ? 'loginPass' : 'regPass').value;
+
+            if (!e.endsWith('@superior.edu.pk')) return alert("Use @superior.edu.pk only!");
+            if (p.length < 6) return alert("Password min. 6 characters!");
+
+            try {
+                if (t === 'signup') {
+                    await auth.createUserWithEmailAndPassword(e, p);
+                    alert("Account Created! Please Login.");
+                    toggleAuthMode('login');
+                } else {
+                    await auth.signInWithEmailAndPassword(e, p);
+                }
+            } catch (err) {
+                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
+                    alert("Login Failed: Agar aapne Google se account banaya tha, toh 'Sign in with Google' button use karein.");
+                } else {
+                    alert(err.message);
+                }
+            }
+        }
+
+        // --- DASHBOARD & SYNC LOGIC ---
+        async function initDashboard() {
+            if (!activeUser) return;
+            const doc = await db.collection("users").doc(activeUser.uid).get();
+            semesterData = doc.exists ? (doc.data().semesters || []) : [];
+            render();
+        }
+
+        async function saveAndRender() {
+            if (activeUser) {
+                try {
+                    await db.collection("users").doc(activeUser.uid).set({
+                        semesters: semesterData,
+                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+                        email: activeEmail
+                    }, { merge: true });
+                    render();
+                } catch (error) {
+                    console.error("Cloud Sync Failed:", error);
+                }
+            }
+        }
+
+        // UI Toggles
+        function toggleAuthMode(m) {
+            const p = document.getElementById('authPage');
+            if (m === 'register') {
+                p.classList.add('register-mode');
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('regForm').style.display = 'block';
+            } else {
+                p.classList.remove('register-mode');
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('regForm').style.display = 'none';
+            }
+        }
+        function togglePass(id, el) { const i = document.getElementById(id); i.type = i.type === "password" ? "text" : "password"; el.innerText = i.type === "password" ? "👁️" : "🔒"; }
+        function toggleEmailDisplay() { isEmailVisible = !isEmailVisible; document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••"; }
+        async function logout() { await auth.signOut(); location.reload(); }
+        function clearDashboard() { if (confirm('Erase everything?')) { semesterData = []; saveAndRender(); } }
+
+        // --- CORE CALCULATION & RENDER ---
+        function addSemester() { semesterData.push({ id: Date.now(), name: `Semester ${semesterData.length + 1}`, subjects: [] }); saveAndRender(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+        function deleteSem(id) { semesterData = semesterData.filter(s => s.id !== id); saveAndRender(); }
+        function addSubject(semId) { semesterData.find(s => s.id === semId).subjects.push({ id: Date.now() + Math.random(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [{ type: 'Quiz', weight: 10, total: 40, obt: 0 }] }); saveAndRender(); }
+        function switchMode(semId, subId, mode) { semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId).mode = mode; saveAndRender(); }
+        function updateAsm(semId, subId, asmIdx, field, val) { const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId); sub.assessments[asmIdx][field] = field === 'type' ? val : parseFloat(val || 0); saveAndRender(); }
+
+        function render() {
+            const container = document.getElementById('semContainer');
+            container.innerHTML = '';
+            let totalQP = 0, totalCH = 0;
+
+            semesterData.forEach((sem, sIdx) => {
+                let semCH = 0, semQP = 0;
+                const subjectsHtml = sem.subjects.map((sub, subIdx) => {
+                    let weightedPercentage = 0, subTotalWeight = 0;
+                    if (sub.mode === 'assessment') {
+                        sub.assessments.forEach(a => { subTotalWeight += a.weight; if (a.total > 0) weightedPercentage += (a.obt / a.total) * a.weight; });
+                    } else { weightedPercentage = sub.simpleObt || 0; }
+
+                    const gradeObj = gradingPlan.find(p => weightedPercentage >= p.min) || gradingPlan[10];
+                    semCH += sub.ch; semQP += (gradeObj.p * sub.ch);
+
+                    const asmRows = sub.assessments.map((a, aIdx) => `
+                <tr>
+                    <td>
+                        <select class="input-minimal" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'type',this.value)">
+                            ${assessmentTypes.map(opt => `<option value="${opt}" ${a.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
+                    <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
+                    <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
+                    <td><button style="border:none; background:none; color:red; cursor:pointer;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.splice(${aIdx},1);saveAndRender()">✕</button></td>
+                </tr>`).join('');
+
+                    return `
+            <div class="subject-block">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                    <input style="font-weight:800; font-size:18px; border:none; outline:none; background:none; width:60%;" value="${sub.title}" placeholder="Subject Name" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()">
+                    <div class="mode-toggle">
+                        <button class="mode-btn ${sub.mode === 'simple' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'simple')">Simple</button>
+                        <button class="mode-btn ${sub.mode === 'assessment' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'assessment')">Assessment</button>
+                    </div>
+                    <div><label style="font-size:10px; font-weight:800;">CH:</label><input type="number" style="width:45px" class="input-minimal" value="${sub.ch}" onchange="semesterData[${sIdx}].subjects[${subIdx}].ch=parseFloat(this.value);saveAndRender()"></div>
+                </div>
+                ${sub.mode === 'simple' ? `<div style="padding:10px 0;"><label style="font-size:10px; font-weight:800; color:var(--text-muted);">TOTAL OBTAINED (0-100)</label><input type="number" class="input-minimal" style="margin-top:8px;" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=parseFloat(this.value);saveAndRender()"></div>` : `
+                    <div class="warning-banner" style="display: ${subTotalWeight !== 100 ? 'block' : 'none'}">⚠️ Total Weight: ${subTotalWeight}% (Target: 100%)</div>
+                    <div class="table-wrap"><table><thead><tr><th>Type</th><th>Wtg %</th><th>Total</th><th>Obt</th><th></th></tr></thead><tbody>${asmRows}</tbody></table></div>
+                    <button class="btn" style="background:#f1f5f9; color:var(--accent); font-weight:800; margin-top:15px;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.push({type:'Assignment',weight:10,total:40,obt:0});saveAndRender()">+ Add Assessment</button>
+                `}
+                <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:20px; padding-top:15px; border-top:1px solid var(--border); font-weight:800;">
+                    <span>Percentage: ${weightedPercentage.toFixed(1)}%</span>
+                    <span style="color:var(--accent)">GPA: ${gradeObj.p.toFixed(2)}</span>
+                    <button style="color:red; background:none; border:none; cursor:pointer;" onclick="semesterData[${sIdx}].subjects.splice(${subIdx},1);saveAndRender()">✕</button>
+                </div>
+            </div>`;
+                }).join('');
+
+                const sgpa = semCH > 0 ? (semQP / semCH) : 0;
+                totalCH += semCH; totalQP += semQP;
+                const card = document.createElement('div'); card.className = 'sem-card';
+                card.innerHTML = `<div class="sem-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><div style="display:flex;align-items:center"><div style="background:var(--primary); color:white; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:12px; font-weight:800">${sIdx + 1}</div><input style="font-size:20px; font-weight:800; border:none; outline:none; margin-left:15px; background:none;" value="${sem.name}" onchange="semesterData[${sIdx}].name=this.value;saveAndRender()"></div><div style="background:#eff6ff; color:var(--accent); padding:10px 20px; border-radius:15px; font-weight:800">SGPA: ${sgpa.toFixed(2)}</div><button style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:700" onclick="deleteSem(${sem.id})">Delete</button></div>
+            ${subjectsHtml}<button class="auth-btn" style="width:100%; background:var(--bg); color:var(--accent); border:2px dashed var(--border); margin-top:10px;" onclick="addSubject(${sem.id})">+ ADD SUBJECT ENTRY</button>`;
+                container.appendChild(card);
+            });
+            document.getElementById('cgpaVal').innerText = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
+            document.getElementById('degreeStatus').innerText = `Total Earned Credits: ${totalCH}`;
+        }
+
+        // PDF Import Handler
         async function handlePdfUpload(e) {
             const file = e.target.files[0]; if (!file) return;
             const pdf = await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
@@ -542,181 +722,6 @@
             });
             saveAndRender();
             alert("PDF Data Imported!");
-        }
-
-        // --- AUTH LOGIC ---
-        function toggleAuthMode(m) { const p = document.getElementById('authPage'); if (m === 'register') { p.classList.add('register-mode'); document.getElementById('loginForm').style.display = 'none'; document.getElementById('regForm').style.display = 'block'; } else { p.classList.remove('register-mode'); document.getElementById('loginForm').style.display = 'block'; document.getElementById('regForm').style.display = 'none'; } }
-        function togglePass(id, el) { const i = document.getElementById(id); i.type = i.type === "password" ? "text" : "password"; el.innerText = i.type === "password" ? "👁️" : "🔒"; }
-        function toggleEmailDisplay() { isEmailVisible = !isEmailVisible; document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••"; }
-
-        // 2. Handle Manual Auth: Isme maine Provider check dal diya hai
-        async function handleAuth(t) {
-            const e = document.getElementById(t === 'login' ? 'loginEmail' : 'regEmail').value.trim().toLowerCase();
-            const p = document.getElementById(t === 'login' ? 'loginPass' : 'regPass').value;
-
-            if (!e.endsWith('@superior.edu.pk')) return alert("Access Denied: @superior.edu.pk only!");
-            if (p.length < 6) return alert("Password must be at least 6 characters.");
-
-            try {
-                if (t === 'signup') {
-                    await auth.createUserWithEmailAndPassword(e, p);
-                    alert("Account Created successfully! Now Login.");
-                    toggleAuthMode('login');
-                } else {
-                    await auth.signInWithEmailAndPassword(e, p);
-                }
-            } catch (err) {
-                // Agar account Google wala hai aur aap manual login kar rahe hain
-                if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-                    alert("Login Failed: Aapka account Google se linked hai. Meharbani karke 'Sign in with Google' button dabayein.");
-                } else if (err.code === 'auth/email-already-in-use') {
-                    alert("Ye Email pehle se register hai. Login page par ja kar Google button use karein.");
-                } else {
-                    alert(err.message);
-                }
-            }
-        }
-
-        // 3. Google Login: Mobile ke liye Redirect aur Desktop ke liye Popup
-        async function loginWithGoogle() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.setCustomParameters({
-                prompt: 'select_account',
-                hd: 'superior.edu.pk' // Sirf superior ki IDs select karne dega
-            });
-
-            try {
-                if (window.innerWidth <= 768) {
-                    // Mobile par popup block hota hai, isliye redirect use karein
-                    await auth.signInWithRedirect(provider);
-                } else {
-                    const result = await auth.signInWithPopup(provider);
-                    if (result.user.email.endsWith('@superior.edu.pk')) {
-                        activeUser = result.user;
-                        activeEmail = result.user.email;
-                        initDashboard();
-                    } else {
-                        alert("Only @superior.edu.pk accounts allowed!");
-                        await auth.signOut();
-                    }
-                }
-            } catch (err) {
-                alert("Google Auth Error: " + err.message);
-            }
-        }
-
-        // Firebase Auth State Listener
-        auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                if (!user.email.endsWith('@superior.edu.pk')) {
-                    alert("Access Denied: Use @superior.edu.pk email only!");
-                    await auth.signOut();
-                    return;
-                }
-                activeUser = user;
-                activeEmail = user.email;
-                await initDashboard();
-            } else {
-                document.getElementById('authPage').style.display = 'flex';
-                document.getElementById('mainDashboard').style.display = 'none';
-                semesterData = [];
-            }
-        });
-
-        async function initDashboard() {
-            document.getElementById('authPage').style.display = 'none';
-            document.getElementById('mainDashboard').style.display = 'block';
-            const doc = await db.collection("users").doc(activeUser.uid).get();
-            semesterData = doc.exists ? (doc.data().semesters || []) : [];
-            render();
-        }
-
-        async function logout() { await auth.signOut(); location.reload(); }
-        function clearDashboard() { if (confirm('Erase everything?')) { semesterData = []; saveAndRender(); } }
-
-        async function saveAndRender() {
-            if (activeUser) {
-                try {
-                    await db.collection("users").doc(activeUser.uid).set({
-                        semesters: semesterData,
-                        lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
-                        email: activeEmail
-                    }, { merge: true });
-                    render();
-                } catch (error) {
-                    console.error("Cloud Sync Failed:", error);
-                }
-            }
-        }
-
-        // --- CORE LOGIC ---
-        function addSemester() { semesterData.push({ id: Date.now(), name: `Semester ${semesterData.length + 1}`, subjects: [] }); saveAndRender(); window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
-        function deleteSem(id) { semesterData = semesterData.filter(s => s.id !== id); saveAndRender(); }
-        function addSubject(semId) { semesterData.find(s => s.id === semId).subjects.push({ id: Date.now() + Math.random(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [{ type: 'Quiz', weight: 10, total: 40, obt: 0 }] }); saveAndRender(); }
-        function switchMode(semId, subId, mode) { semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId).mode = mode; saveAndRender(); }
-        function updateAsm(semId, subId, asmIdx, field, val) { const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId); sub.assessments[asmIdx][field] = field === 'type' ? val : parseFloat(val || 0); saveAndRender(); }
-
-        function render() {
-            const container = document.getElementById('semContainer');
-            container.innerHTML = '';
-            let totalQP = 0, totalCH = 0;
-
-            semesterData.forEach((sem, sIdx) => {
-                let semCH = 0, semQP = 0;
-                const subjectsHtml = sem.subjects.map((sub, subIdx) => {
-                    let weightedPercentage = 0, subTotalWeight = 0;
-                    if (sub.mode === 'assessment') {
-                        sub.assessments.forEach(a => { subTotalWeight += a.weight; if (a.total > 0) weightedPercentage += (a.obt / a.total) * a.weight; });
-                    } else { weightedPercentage = sub.simpleObt || 0; }
-
-                    const gradeObj = gradingPlan.find(p => weightedPercentage >= p.min) || gradingPlan[10];
-                    semCH += sub.ch; semQP += (gradeObj.p * sub.ch);
-
-                    const asmRows = sub.assessments.map((a, aIdx) => `
-                    <tr>
-                        <td>
-                            <select class="input-minimal" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'type',this.value)">
-                                ${assessmentTypes.map(opt => `<option value="${opt}" ${a.type === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                            </select>
-                        </td>
-                        <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
-                        <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
-                        <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
-                        <td><button style="border:none; background:none; color:red; cursor:pointer;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.splice(${aIdx},1);saveAndRender()">✕</button></td>
-                    </tr>`).join('');
-
-                    return `
-                <div class="subject-block">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                        <input style="font-weight:800; font-size:18px; border:none; outline:none; background:none; width:60%;" value="${sub.title}" placeholder="Subject Name" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()">
-                        <div class="mode-toggle">
-                            <button class="mode-btn ${sub.mode === 'simple' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'simple')">Simple</button>
-                            <button class="mode-btn ${sub.mode === 'assessment' ? 'active' : ''}" onclick="switchMode(${sem.id},${sub.id},'assessment')">Assessment</button>
-                        </div>
-                        <div><label style="font-size:10px; font-weight:800;">CH:</label><input type="number" style="width:45px" class="input-minimal" value="${sub.ch}" onchange="semesterData[${sIdx}].subjects[${subIdx}].ch=parseFloat(this.value);saveAndRender()"></div>
-                    </div>
-                    ${sub.mode === 'simple' ? `<div style="padding:10px 0;"><label style="font-size:10px; font-weight:800; color:var(--text-muted);">TOTAL OBTAINED MARKS (0-100)</label><input type="number" class="input-minimal" style="margin-top:8px;" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=parseFloat(this.value);saveAndRender()"></div>` : `
-                        <div class="warning-banner" style="display: ${subTotalWeight !== 100 ? 'block' : 'none'}">⚠️ Total Weight: ${subTotalWeight}% (Target: 100%)</div>
-                        <div class="table-wrap"><table><thead><tr><th>Type</th><th>Wtg %</th><th>Total</th><th>Obt</th><th></th></tr></thead><tbody>${asmRows}</tbody></table></div>
-                        <button class="btn" style="background:#f1f5f9; color:var(--accent); font-weight:800; margin-top:15px;" onclick="semesterData.find(s=>s.id===${sem.id}).subjects.find(x=>x.id===${sub.id}).assessments.push({type:'Assignment',weight:10,total:40,obt:0});saveAndRender()">+ Add Assessment</button>
-                    `}
-                    <div style="display:flex; justify-content:flex-end; gap:20px; margin-top:20px; padding-top:15px; border-top:1px solid var(--border); font-weight:800;">
-                        <span>Percentage: ${weightedPercentage.toFixed(1)}%</span>
-                        <span style="color:var(--accent)">GPA: ${gradeObj.p.toFixed(2)}</span>
-                        <button style="color:red; background:none; border:none; cursor:pointer;" onclick="semesterData[${sIdx}].subjects.splice(${subIdx},1);saveAndRender()">✕</button>
-                    </div>
-                </div>`;
-                }).join('');
-
-                const sgpa = semCH > 0 ? (semQP / semCH) : 0;
-                totalCH += semCH; totalQP += semQP;
-                const card = document.createElement('div'); card.className = 'sem-card';
-                card.innerHTML = `<div class="sem-header"><div style="display:flex;align-items:center"><div style="background:var(--primary); color:white; width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:12px; font-weight:800">${sIdx + 1}</div><input style="font-size:20px; font-weight:800; border:none; outline:none; margin-left:15px; background:none;" value="${sem.name}" onchange="semesterData[${sIdx}].name=this.value;saveAndRender()"></div><div style="background:#eff6ff; color:var(--accent); padding:10px 20px; border-radius:15px; font-weight:800">SGPA: ${sgpa.toFixed(2)}</div><button style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:700" onclick="deleteSem(${sem.id})">Delete</button></div>
-                ${subjectsHtml}<button class="auth-btn" style="width:100%; background:var(--bg); color:var(--accent); border:2px dashed var(--border); margin-top:10px;" onclick="addSubject(${sem.id})">+ ADD SUBJECT ENTRY</button>`;
-                container.appendChild(card);
-            });
-            document.getElementById('cgpaVal').innerText = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
-            document.getElementById('degreeStatus').innerText = `Total Earned Credits: ${totalCH}`;
         }
 
         document.getElementById('pdfInput').addEventListener('change', handlePdfUpload);
