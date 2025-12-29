@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super GPA Calc | Elite Academic Portal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
@@ -381,9 +382,12 @@
                 </div>
                 <button class="auth-btn" onclick="handleAuth('login')">Login to Portal</button>
                 <button class="google-btn" onclick="loginWithGoogle()">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Sign in with Google
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Sign in
+                    with Google
                 </button>
-                <p style="text-align: center; margin-top: 20px; font-size: 14px;">New? <span onclick="toggleAuthMode('register')" style="color:var(--accent); font-weight:800; cursor:pointer;">Register</span></p>
+                <p style="text-align: center; margin-top: 20px; font-size: 14px;">New? <span
+                        onclick="toggleAuthMode('register')"
+                        style="color:var(--accent); font-weight:800; cursor:pointer;">Register</span></p>
             </div>
             <div class="form-container" id="regForm" style="display: none;">
                 <h2 style="font-size: 32px; font-weight: 800; margin-bottom: 10px;">Register</h2>
@@ -392,11 +396,15 @@
                     <input type="password" id="regPass" class="auth-input" placeholder="Min. 6 chars">
                     <span class="eye-toggle" onclick="togglePass('regPass', this)">👁️</span>
                 </div>
-                <button class="auth-btn" style="background:var(--success)" onclick="handleAuth('signup')">Create Account</button>
+                <button class="auth-btn" style="background:var(--success)" onclick="handleAuth('signup')">Create
+                    Account</button>
                 <button class="google-btn" onclick="loginWithGoogle()">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue with Google
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Continue
+                    with Google
                 </button>
-                <p style="text-align: center; margin-top: 20px; font-size: 14px;">Have account? <span onclick="toggleAuthMode('login')" style="color:var(--accent); font-weight:800; cursor:pointer;">Login</span></p>
+                <p style="text-align: center; margin-top: 20px; font-size: 14px;">Have account? <span
+                        onclick="toggleAuthMode('login')"
+                        style="color:var(--accent); font-weight:800; cursor:pointer;">Login</span></p>
             </div>
         </div>
     </div>
@@ -406,18 +414,25 @@
             <div class="glass-header">
                 <div>
                     <h1 style="margin:0; font-size: clamp(24px, 4vw, 36px);">Super GPA Calc</h1>
-                    <p style="opacity: 0.8; font-size: clamp(14px, 2vw, 18px);">Superior University Performance System</p>
+                    <p style="opacity: 0.8; font-size: clamp(14px, 2vw, 18px);">Superior University Performance System
+                    </p>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px;">System CGPA</div>
+                    <div
+                        style="font-size: 11px; font-weight: 800; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px;">
+                        System CGPA</div>
                     <div id="cgpaVal" class="cgpa-val">0.00</div>
-                    <div id="degreeStatus" style="font-size:13px; font-weight:700; background:rgba(255,255,255,0.2); padding:8px 18px; border-radius:30px; margin-top:10px; display:inline-block;">Credits: 0</div>
+                    <div id="degreeStatus"
+                        style="font-size:13px; font-weight:700; background:rgba(255,255,255,0.2); padding:8px 18px; border-radius:30px; margin-top:10px; display:inline-block;">
+                        Credits: 0</div>
                 </div>
             </div>
 
             <div class="identity-grid">
                 <div class="id-card">
-                    <label style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Active Student Email</label>
+                    <label
+                        style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Active
+                        Student Email</label>
                     <div class="email-display">
                         <span id="userEmailTag" style="font-weight:700; color:var(--primary)">••••••••••••••••</span>
                         <span style="cursor:pointer;" onclick="toggleEmailDisplay()">👁️</span>
@@ -425,7 +440,9 @@
                 </div>
 
                 <div class="id-card">
-                    <label style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Account Password</label>
+                    <label
+                        style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Account
+                        Password</label>
                     <div class="email-display">
                         <span id="userPassDisplay" style="font-weight:700; color:var(--primary)">••••••••••••••••</span>
                         <span style="cursor:pointer;" onclick="toggleActualPass()">👁️</span>
@@ -433,16 +450,23 @@
                 </div>
 
                 <div class="id-card">
-                    <label style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Account Status</label>
-                    <div style="color:var(--success); font-weight:700; margin-top:12px; font-size:16px;">✓ Official Access Verified</div>
+                    <label
+                        style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Account
+                        Status</label>
+                    <div style="color:var(--success); font-weight:700; margin-top:12px; font-size:16px;">✓ Official
+                        Access Verified</div>
                 </div>
             </div>
 
             <div class="actions-bar">
-                <button class="btn" style="background:var(--success); color:white" onclick="document.getElementById('fileInput').click()">📁 Excel</button>
-                <button class="btn" style="background:#6366f1; color:white" onclick="document.getElementById('pdfInput').click()">📄 Sync PDF</button>
-                <button class="btn" style="background:var(--danger); color:white" onclick="clearDashboard()">🗑️ Clear</button>
-                <button class="btn" style="background:#fff; border:1px solid var(--border)" onclick="logout()">🚪 Sign Out</button>
+                <button class="btn" style="background:var(--success); color:white"
+                    onclick="document.getElementById('fileInput').click()">📁 Excel</button>
+                <button class="btn" style="background:#6366f1; color:white"
+                    onclick="document.getElementById('pdfInput').click()">📄 Sync PDF</button>
+                <button class="btn" style="background:var(--danger); color:white" onclick="clearDashboard()">🗑️
+                    Clear</button>
+                <button class="btn" style="background:#fff; border:1px solid var(--border)" onclick="logout()">🚪 Sign
+                    Out</button>
                 <input type="file" id="fileInput" accept=".xlsx, .xls, .csv" style="display:none">
                 <input type="file" id="pdfInput" accept=".pdf" style="display:none">
             </div>
@@ -509,16 +533,17 @@
             if (user) {
                 const email = user.email.toLowerCase();
                 if (email.endsWith('@superior.edu.pk')) {
-                    activeUser = user;
-                    activeEmail = email;
-
-                    // Force Dashboard UI
+                    // STEP 1: UI ko foran switch karein (Database ka intezar na karein)
                     loginPage.style.setProperty('display', 'none', 'important');
                     dashboard.style.setProperty('display', 'block', 'important');
 
-                    await initDashboard();
+                    activeUser = user;
+                    activeEmail = email;
+
+                    // STEP 2: Background mein data load karein
+                    initDashboard().catch(err => console.log("Silent Error:", err));
                 } else {
-                    alert("Superior ID use karein!");
+                    alert("Sirf Superior ID use karein!");
                     await auth.signOut();
                 }
             } else {
@@ -580,15 +605,15 @@
             tag.style.color = isActualPassVisible ? "var(--accent)" : "var(--primary)";
         }
 
-        function toggleEmailDisplay() { 
-            isEmailVisible = !isEmailVisible; 
-            document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••"; 
+        function toggleEmailDisplay() {
+            isEmailVisible = !isEmailVisible;
+            document.getElementById('userEmailTag').innerText = isEmailVisible ? activeEmail : "••••••••••••••••";
         }
 
-        async function logout() { 
+        async function logout() {
             localStorage.removeItem('current_p'); // Clear for security
-            await auth.signOut(); 
-            location.reload(); 
+            await auth.signOut();
+            location.reload();
         }
 
         async function saveAndRender() {
@@ -617,10 +642,10 @@
             }
         }
 
-        function togglePass(id, el) { 
-            const i = document.getElementById(id); 
-            i.type = i.type === "password" ? "text" : "password"; 
-            el.innerText = i.type === "password" ? "👁️" : "🔒"; 
+        function togglePass(id, el) {
+            const i = document.getElementById(id);
+            i.type = i.type === "password" ? "text" : "password";
+            el.innerText = i.type === "password" ? "👁️" : "🔒";
         }
 
         // --- CORE CALCULATIONS & RENDER ---
