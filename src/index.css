@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui;
+  --color-superior-blue: #1e3a8a;
+  /* Aapko tailwind.config.js ki zaroorat nahi paray gi */
+}
