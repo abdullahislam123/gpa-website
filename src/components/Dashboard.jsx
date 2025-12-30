@@ -814,7 +814,14 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                 <div className="col-span-2 md:col-span-4">
                                                                     <select className="w-full bg-white border border-slate-200 rounded-lg md:rounded-xl p-2 md:p-3 font-bold text-[10px] md:text-xs outline-none"
                                                                             value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
-                                                                        <option>Quiz</option><option>Assignment</option><option>Mid Exam</option><option>Final Exam</option><option>Project</option>
+                                                                        <option>Quiz</option>
+                                                                        <option>Assignment</option>
+                                                                        <option>Mid Exam</option>
+                                                                        <option>Final Exam</option>
+                                                                        <option>Project</option>
+                                                                        <option>Viva</option>
+                                                                        <option>Class participation</option>
+                                                                        <option>Others</option>
                                                                     </select>
                                                                 </div>
                                                                 <div className="md:col-span-2 flex flex-col items-center">
