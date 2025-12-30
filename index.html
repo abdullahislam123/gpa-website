@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super GPA Calc | Elite Academic Portal</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
 
@@ -27,13 +28,12 @@
             --border: #e2e8f0;
             --sup-blue: #1e3a8a;
             --sup-light: #3b82f6;
-            --warning-bg: #fffbeb;
         }
 
         * {
             box-sizing: border-box;
             font-family: 'Plus Jakarta Sans', sans-serif;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body {
@@ -44,7 +44,7 @@
             overflow-x: hidden;
         }
 
-        /* AUTH SYSTEM UI */
+        /* --- AUTH SYSTEM UI --- */
         #authPage {
             display: flex;
             min-height: 100vh;
@@ -73,10 +73,11 @@
         }
 
         .branding-content h1 {
-            font-size: clamp(2rem, 5vw, 3rem);
+            font-size: clamp(2.5rem, 6vw, 4rem);
             font-weight: 800;
             margin-bottom: 20px;
-            letter-spacing: -2px;
+            letter-spacing: -3px;
+            line-height: 1;
         }
 
         .p-card {
@@ -85,11 +86,12 @@
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.15);
             margin-bottom: 15px;
+            width: 100%;
         }
 
         .auth-input {
             width: 100%;
-            padding: 16px;
+            padding: 18px;
             border: 2px solid var(--border);
             border-radius: 20px;
             outline: none;
@@ -107,6 +109,7 @@
             font-weight: 700;
             cursor: pointer;
             font-size: 16px;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
         }
 
         .google-btn {
@@ -118,17 +121,18 @@
             border-radius: 20px;
             font-weight: 700;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
         }
 
-        /* DASHBOARD UI */
+        /* --- DASHBOARD UI --- */
         #mainDashboard {
             display: none;
             padding: 40px 20px;
+            animation: fadeIn 0.8s ease;
         }
 
         .container {
@@ -141,7 +145,7 @@
 
         .glass-header {
             background: linear-gradient(135deg, var(--sup-blue) 0%, var(--sup-light) 100%);
-            padding: 50px;
+            padding: clamp(30px, 5vw, 60px);
             border-radius: 45px;
             color: white;
             display: flex;
@@ -153,38 +157,27 @@
         }
 
         .cgpa-val {
-            font-size: clamp(40px, 8vw, 80px);
+            font-size: clamp(50px, 10vw, 90px);
             font-weight: 800;
-            letter-spacing: -4px;
+            letter-spacing: -5px;
         }
 
-        .identity-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .id-card {
-            background: white;
-            padding: 25px;
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            background: #fff;
+            padding: 12px;
             border-radius: 25px;
             border: 1px solid var(--border);
-        }
-
-        .email-display {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #f1f5f9;
-            padding: 12px;
-            border-radius: 18px;
-            margin-top: 10px;
+            width: fit-content;
+            align-self: flex-end;
         }
 
         .sem-card {
             background: white;
             border-radius: 40px;
-            padding: 30px;
+            padding: clamp(20px, 4vw, 40px);
             border: 1px solid var(--border);
             margin-bottom: 30px;
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.03);
@@ -195,17 +188,60 @@
             border: 1.5px solid var(--border);
             border-radius: 30px;
             padding: 25px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
-        /* LOADING OVERLAY */
+        /* --- TABLES & INPUTS --- */
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+            border-radius: 15px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .input-minimal {
+            width: 100%;
+            padding: 10px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            outline: none;
+            font-size: 14px;
+        }
+
+        .input-minimal:focus {
+            border-color: var(--accent);
+            background: #fff;
+        }
+
+        /* --- LOADING OVERLAY --- */
         #loadingOverlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             display: none;
             flex-direction: column;
             justify-content: center;
@@ -214,10 +250,10 @@
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid var(--border);
-            border-top: 5px solid var(--accent);
+            width: 60px;
+            height: 60px;
+            border: 6px solid var(--border);
+            border-top: 6px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -232,43 +268,19 @@
             }
         }
 
-        .btn-action {
-            padding: 10px 20px;
-            border-radius: 12px;
-            border: none;
-            font-weight: 700;
-            cursor: pointer;
-            font-size: 13px;
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-
-        th {
-            text-align: left;
-            font-size: 11px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            padding: 12px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .input-minimal {
-            width: 100%;
-            padding: 8px;
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            outline: none;
-        }
-
+        /* --- RESPONSIVENESS --- */
         @media (max-width: 1024px) {
             #authPage {
                 flex-direction: column;
@@ -278,6 +290,19 @@
                 display: none;
             }
         }
+
+        @media (max-width: 768px) {
+            .glass-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .action-bar {
+                align-self: center;
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 
@@ -285,48 +310,52 @@
 
     <div id="loadingOverlay">
         <div class="spinner"></div>
-        <div class="loading-text" style="margin-top:15px; font-weight:800;">Authenticating...</div>
+        <div class="loading-text" style="margin-top:20px; font-weight:800; color:var(--primary);">Syncing Academic
+            Vault...</div>
     </div>
 
     <div id="authPage">
         <div class="auth-side branding-side">
             <div class="branding-content">
-                <h1>Super GPA Calc.</h1>
-                <p>Advanced tracking for students. Accurate sync and modern assessments.</p>
+                <h1>Academic<br />Performance.</h1>
+                <p style="font-size: 1.2rem; opacity: 0.9; margin-bottom: 40px;">Professional grade GPA tracking for
+                    Superior University students.</p>
                 <div class="p-card">
-                    <h4>📊 Universal Access</h4>
-                    <p>Login with any academic or personal email.</p>
+                    <h4>☁️ Cloud Persistence</h4>
+                    <p>Your grades are synced across all your devices instantly.</p>
                 </div>
                 <div class="p-card">
-                    <h4>⚡ Precision Math</h4>
-                    <p>Strictly follows official grading logic.</p>
+                    <h4>📄 Smart Import</h4>
+                    <p>Upload your official transcript PDF to auto-populate data.</p>
                 </div>
             </div>
         </div>
         <div class="auth-side">
-            <div id="loginForm" style="width: 100%; max-width: 400px;">
-                <h2 style="font-weight: 800; margin-bottom: 20px;">Sign In</h2>
+            <div id="loginForm" style="width: 100%; max-width: 420px;">
+                <h2 style="font-size: 32px; font-weight: 800; margin-bottom: 8px;">Portal Access</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px;">Login to track your cumulative journey.</p>
                 <input type="email" id="loginEmail" class="auth-input" placeholder="Email Address">
                 <input type="password" id="loginPass" class="auth-input" placeholder="Password">
-                <button class="auth-btn" onclick="handleAuth('login')">Login to Portal</button>
+                <button class="auth-btn" onclick="handleAuth('login')">Enter Dashboard</button>
                 <button class="google-btn" onclick="loginWithGoogle()">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Sign in
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"> Continue
                     with Google
                 </button>
-                <p style="text-align: center; margin-top: 20px; font-size: 14px;">New? <span
+                <p style="text-align: center; margin-top: 25px; font-size: 14px;">Don't have an account? <span
                         onclick="toggleAuthMode('register')"
-                        style="color:var(--accent); font-weight:800; cursor:pointer;">Register</span></p>
+                        style="color:var(--accent); font-weight:800; cursor:pointer;">Register Now</span></p>
             </div>
 
-            <div id="regForm" style="width: 100%; max-width: 400px; display: none;">
-                <h2 style="font-weight: 800; margin-bottom: 20px;">Create Account</h2>
+            <div id="regForm" style="width: 100%; max-width: 420px; display: none;">
+                <h2 style="font-size: 32px; font-weight: 800; margin-bottom: 8px;">New Account</h2>
                 <input type="email" id="regEmail" class="auth-input" placeholder="Email Address">
-                <input type="password" id="regPass" class="auth-input" placeholder="Min. 6 characters">
-                <button class="auth-btn" style="background:var(--success)" onclick="handleAuth('signup')">Register
-                    Now</button>
-                <p style="text-align: center; margin-top: 20px; font-size: 14px;">Have account? <span
+                <input type="password" id="regPass" class="auth-input"
+                    placeholder="Create Password (Min. 6 characters)">
+                <button class="auth-btn" style="background:var(--success)" onclick="handleAuth('signup')">Create
+                    Profile</button>
+                <p style="text-align: center; margin-top: 25px; font-size: 14px;">Already registered? <span
                         onclick="toggleAuthMode('login')"
-                        style="color:var(--accent); font-weight:800; cursor:pointer;">Login</span></p>
+                        style="color:var(--accent); font-weight:800; cursor:pointer;">Sign In</span></p>
             </div>
         </div>
     </div>
@@ -335,55 +364,39 @@
         <div class="container">
             <div class="glass-header">
                 <div>
-                    <h1 style="margin:0;">GPA Dashboard</h1>
-                    <p style="opacity: 0.8;">Performance Tracking System</p>
+                    <h1 style="margin:0; font-size: clamp(24px, 4vw, 36px);">Super GPA Calc</h1>
+                    <p id="userEmailTag" style="opacity: 0.8; margin-top: 10px; font-weight: 500;">••••••••••••</p>
                 </div>
                 <div style="text-align: right;">
-                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; opacity: 0.8;">Current
-                        CGPA</div>
+                    <div
+                        style="font-size: 11px; font-weight: 800; text-transform: uppercase; opacity: 0.8; letter-spacing: 1px;">
+                        System CGPA</div>
                     <div id="cgpaVal" class="cgpa-val">0.00</div>
                     <div id="degreeStatus"
-                        style="font-weight:700; background:rgba(255,255,255,0.2); padding:8px 18px; border-radius:30px; margin-top:10px; display:inline-block;">
+                        style="font-weight:700; background:rgba(255,255,255,0.2); padding:10px 20px; border-radius:30px; display:inline-block;">
                         Credits: 0</div>
                 </div>
             </div>
 
-            <div class="identity-grid">
-                <div class="id-card">
-                    <label
-                        style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Account
-                        Email</label>
-                    <div class="email-display">
-                        <span id="userEmailTag" style="font-weight:700;">••••••••••••••••</span>
-                        <span style="cursor:pointer;" onclick="toggleEmailDisplay()">👁️</span>
-                    </div>
-                </div>
-                <div class="id-card">
-                    <label
-                        style="font-size:10px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Actions</label>
-                    <div style="display:flex; gap:10px; margin-top:10px;">
-                        <button class="btn-action" style="background:var(--success); color:white"
-                            onclick="document.getElementById('fileInput').click()">Excel</button>
-                        <button class="btn-action" style="background:var(--primary); color:white"
-                            onclick="document.getElementById('pdfInput').click()">PDF Sync</button>
-                        <button class="btn-action" style="background:var(--danger); color:white"
-                            onclick="clearDashboard()">Clear</button>
-                        <button class="btn-action" style="background:#fff; border:1px solid var(--border)"
-                            onclick="logout()">Logout</button>
-                    </div>
-                    <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
-                    <input type="file" id="pdfInput" accept=".pdf" style="display:none">
-                </div>
+            <div class="action-bar">
+                <button class="auth-btn" style="width: auto; padding: 10px 20px; background: var(--primary);"
+                    onclick="document.getElementById('pdfInput').click()">📄 Sync PDF</button>
+                <button class="auth-btn" style="width: auto; padding: 10px 20px; background: var(--success);"
+                    onclick="document.getElementById('fileInput').click()">📁 Excel</button>
+                <button class="auth-btn" style="width: auto; padding: 10px 20px; background: var(--danger);"
+                    onclick="logout()">🚪 Logout</button>
+                <input type="file" id="pdfInput" accept=".pdf" style="display:none">
+                <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
             </div>
 
             <div id="semContainer"></div>
-            <div style="border: 2px dashed var(--border); padding: 40px; border-radius: 30px; text-align: center; cursor: pointer; font-weight: 800; color: var(--text-muted);"
-                onclick="addSemester()">+ INITIALIZE NEW SEMESTER BLOCK</div>
+            <div style="border: 2px dashed var(--border); padding: 50px; border-radius: 40px; text-align: center; cursor: pointer; font-weight: 800; color: var(--text-muted); font-size: 1.1rem;"
+                onclick="addSemester()">+ INITIALIZE NEW ACADEMIC SEMESTER</div>
         </div>
     </div>
 
     <script>
-        // --- 1. CONFIG & CONSTANTS ---
+        // --- 1. CORE SETUP ---
         const firebaseConfig = {
             apiKey: "AIzaSyBQfE_ubdiP5DJSkvwLNHzptlNI85MK8ys",
             authDomain: "super-gpa-calc.firebaseapp.com",
@@ -396,91 +409,69 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
         const provider = new firebase.auth.GoogleAuthProvider();
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         const gradingPlan = [
-            { min: 85, g: "A", p: 4.00 }, { min: 80, g: "A-", p: 3.66 },
-            { min: 75, g: "B+", p: 3.33 }, { min: 71, g: "B", p: 3.00 },
-            { min: 68, g: "B-", p: 2.66 }, { min: 64, g: "C+", p: 2.33 },
-            { min: 61, g: "C", p: 2.00 }, { min: 58, g: "C-", p: 1.66 },
-            { min: 54, g: "D+", p: 1.30 }, { min: 50, g: "D", p: 1.00 },
-            { min: 0, g: "F", p: 0.00 }
+            { min: 85, g: "A", p: 4.00 }, { min: 80, g: "A-", p: 3.66 }, { min: 75, g: "B+", p: 3.33 },
+            { min: 71, g: "B", p: 3.00 }, { min: 68, g: "B-", p: 2.66 }, { min: 64, g: "C+", p: 2.33 },
+            { min: 61, g: "C", p: 2.00 }, { min: 58, g: "C-", p: 1.66 }, { min: 54, g: "D+", p: 1.30 },
+            { min: 50, g: "D", p: 1.00 }, { min: 0, g: "F", p: 0.00 }
         ];
 
         let activeUser = null;
         let semesterData = [];
-        let isEmailVisible = false;
 
         function showLoading(show) { document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none'; }
 
-        // --- 2. AUTH LOGIC ---
+        // --- 2. AUTHENTICATION LOGIC ---
         async function handleLoginSuccess(user) {
             if (!user) return;
             showLoading(true);
             activeUser = user;
-
-            // ✅ DISPLAY TOGGLES COMPLETE
             document.getElementById('authPage').style.display = 'none';
             document.getElementById('mainDashboard').style.display = 'block';
             document.getElementById('userEmailTag').textContent = user.email;
-
             await initDashboard();
             showLoading(false);
         }
 
         async function loginWithGoogle() {
             try {
-                // Ensure auth initialized and persistence set
+                showLoading(true);
                 await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-
-                // ✅ MOBILE REDIRECT / POPUP LOGIC
-                if (window.innerWidth <= 768) {
-                    await auth.signInWithRedirect(provider);
-                } else {
-                    await auth.signInWithPopup(provider);
-                }
-            } catch (err) {
-                alert("Auth Error: " + err.message);
-            }
+                if (window.innerWidth <= 768) await auth.signInWithRedirect(provider);
+                else await auth.signInWithPopup(provider);
+            } catch (err) { alert("Auth Error: " + err.message); showLoading(false); }
         }
 
         async function handleAuth(type) {
             const email = document.getElementById(type === 'login' ? 'loginEmail' : 'regEmail').value.trim();
             const pass = document.getElementById(type === 'login' ? 'loginPass' : 'regPass').value;
-            if (!email || !pass) return alert("Fields cannot be empty");
-
+            if (!email || pass.length < 6) return alert("Valid Email and Password (min 6 chars) required");
             showLoading(true);
             try {
-                if (type === 'signup') {
-                    await auth.createUserWithEmailAndPassword(email, pass);
-                } else {
-                    await auth.signInWithEmailAndPassword(email, pass);
-                }
+                if (type === 'signup') await auth.createUserWithEmailAndPassword(email, pass);
+                else await auth.signInWithEmailAndPassword(email, pass);
             } catch (err) { alert(err.message); }
             finally { showLoading(false); }
         }
 
-        auth.onAuthStateChanged(user => { if (user) handleLoginSuccess(user); });
+        auth.onAuthStateChanged(u => { if (u) handleLoginSuccess(u); });
         auth.getRedirectResult().then(res => { if (res?.user) handleLoginSuccess(res.user); });
 
-        // --- 3. DATA & CALCULATIONS ---
+        // --- 3. DATA PERSISTENCE ---
         async function initDashboard() {
             const doc = await db.collection("users").doc(activeUser.uid).get();
             semesterData = doc.exists ? (doc.data().semesters || []) : [];
             render();
         }
 
-        function calculateGPA(weightedPercentage) {
-            const grade = gradingPlan.find(p => weightedPercentage >= p.min) || gradingPlan[10];
-            return grade.p;
-        }
-
         async function saveAndRender() {
-            if (activeUser) {
-                await db.collection("users").doc(activeUser.uid).set({ semesters: semesterData }, { merge: true });
-            }
+            if (activeUser) await db.collection("users").doc(activeUser.uid).set({ semesters: semesterData }, { merge: true });
             render();
         }
 
+        // --- 4. CALCULATION ENGINE & UI RENDER ---
         function render() {
             const container = document.getElementById('semContainer');
             container.innerHTML = '';
@@ -491,33 +482,43 @@
                 const subjectsHtml = sem.subjects.map((sub, subIdx) => {
                     let score = 0;
                     if (sub.mode === 'assessment') {
-                        sub.assessments.forEach(a => score += (a.obt / a.total) * a.weight);
-                    } else { score = sub.simpleObt; }
+                        sub.assessments.forEach(a => score += (parseFloat(a.obt || 0) / parseFloat(a.total || 1)) * parseFloat(a.weight || 0));
+                    } else { score = parseFloat(sub.simpleObt || 0); }
 
-                    const subGPA = calculateGPA(score);
-                    semCH += parseFloat(sub.ch || 0);
-                    semQP += (subGPA * sub.ch);
+                    const grade = gradingPlan.find(p => score >= p.min) || gradingPlan[10];
+                    const chValue = parseFloat(sub.ch || 0);
+                    semCH += chValue;
+                    semQP += (grade.p * chValue);
 
-                    return `<div class="subject-block">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <input class="input-minimal" style="width:50%; font-weight:700;" value="${sub.title}" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()">
-                            <div style="background:#f1f5f9; padding:5px; border-radius:10px;">
-                                <button class="btn-action" onclick="switchMode(${sem.id}, ${sub.id}, 'simple')">Simple</button>
-                                <button class="btn-action" onclick="switchMode(${sem.id}, ${sub.id}, 'assessment')">Advanced</button>
+                    return `
+                    <div class="subject-block">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                            <input class="input-minimal" style="width:min(100%, 250px); font-weight:700;" value="${sub.title}" onchange="semesterData[${sIdx}].subjects[${subIdx}].title=this.value;saveAndRender()" placeholder="Subject Title">
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <span style="font-size:10px; font-weight:800; color:var(--text-muted);">CREDITS</span>
+                                <input type="number" class="input-minimal" style="width:60px;" value="${sub.ch}" onchange="semesterData[${sIdx}].subjects[${subIdx}].ch=this.value;saveAndRender()">
                             </div>
+                            <div style="background:#f1f5f9; padding:5px; border-radius:12px; display:flex; gap:5px;">
+                                <button class="btn-action" style="padding:6px 12px; background:${sub.mode === 'simple' ? 'white' : 'transparent'}; border-radius:8px; border:none; font-weight:700; cursor:pointer;" onclick="switchMode(${sem.id}, ${sub.id}, 'simple')">Simple</button>
+                                <button class="btn-action" style="padding:6px 12px; background:${sub.mode === 'assessment' ? 'white' : 'transparent'}; border-radius:8px; border:none; font-weight:700; cursor:pointer;" onclick="switchMode(${sem.id}, ${sub.id}, 'assessment')">Adv</button>
+                            </div>
+                            <button style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:800;" onclick="deleteSubject(${sem.id}, ${sub.id})">✕</button>
                         </div>
-                        <div style="margin-top:10px;">
-                             ${sub.mode === 'simple' ?
-                            `<input type="number" class="input-minimal" placeholder="Percentage" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=parseFloat(this.value);saveAndRender()">` :
-                            `<table><thead><th>Type</th><th>Weight %</th><th>Obtained</th><th>Total</th></thead>
-                                 <tbody>${sub.assessments.map((a, aIdx) => `<tr>
-                                    <td>${a.type}</td>
-                                    <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
-                                    <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
-                                    <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
-                                 </tr>`).join('')}</tbody></table>`}
-                        </div>
-                        <div style="text-align:right; font-weight:800; margin-top:10px;">GPA: ${subGPA.toFixed(2)}</div>
+                        ${sub.mode === 'simple' ?
+                            `<div style="margin-top:15px; display:flex; align-items:center; gap:15px;">
+                                <span style="font-size:12px; font-weight:800;">Obtained Marks %:</span>
+                                <input type="number" class="input-minimal" style="width:100px" value="${sub.simpleObt}" onchange="semesterData[${sIdx}].subjects[${subIdx}].simpleObt=this.value;saveAndRender()">
+                             </div>` :
+                            `<div class="table-responsive"><table><thead><th>Assessment</th><th>Wtg%</th><th>Obt</th><th>Total</th><th></th></thead>
+                             <tbody>${sub.assessments.map((a, aIdx) => `<tr>
+                                <td><input class="input-minimal" value="${a.type}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'type',this.value)"></td>
+                                <td><input type="number" class="input-minimal" value="${a.weight}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'weight',this.value)"></td>
+                                <td><input type="number" class="input-minimal" value="${a.obt}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'obt',this.value)"></td>
+                                <td><input type="number" class="input-minimal" value="${a.total}" onchange="updateAsm(${sem.id},${sub.id},${aIdx},'total',this.value)"></td>
+                                <td><button style="color:red; background:none; border:none; cursor:pointer;" onclick="deleteAssessment(${sem.id},${sub.id},${aIdx})">✕</button></td>
+                             </tr>`).join('')}</tbody></table></div>
+                             <button style="margin-top:10px; background:var(--accent); color:white; border:none; padding:8px 15px; border-radius:8px; font-weight:700; cursor:pointer; font-size:11px;" onclick="addAssessment(${sem.id},${sub.id})">+ Add Assessment Row</button>`}
+                        <div style="text-align:right; font-weight:800; margin-top:15px; color:var(--accent); font-size:1.1rem;">GRADE: ${grade.g} | GPA: ${grade.p.toFixed(2)}</div>
                     </div>`;
                 }).join('');
 
@@ -525,60 +526,88 @@
                 totalCH += semCH; totalQP += semQP;
 
                 const card = document.createElement('div'); card.className = 'sem-card';
-                card.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                    <h3 style="margin:0;">${sem.name}</h3>
-                    <div style="color:var(--accent); font-weight:800;">SGPA: ${sgpa.toFixed(2)}</div>
+                card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="background:var(--primary); color:white; width:45px; height:45px; display:flex; align-items:center; justify-content:center; border-radius:15px; font-weight:800;">${sIdx + 1}</div>
+                        <input class="input-minimal" style="font-size:20px; font-weight:800; border:none; padding:0; width:150px;" value="${sem.name}" onchange="semesterData[${sIdx}].name=this.value;saveAndRender()">
+                    </div>
+                    <div style="background:#eff6ff; color:var(--accent); padding:12px 25px; border-radius:20px; font-weight:800; font-size:1.2rem; box-shadow: 0 4px 10px rgba(37,99,235,0.1)">SGPA: ${sgpa.toFixed(2)}</div>
+                    <button style="color:var(--danger); background:none; border:none; cursor:pointer; font-weight:700;" onclick="deleteSem(${sem.id})">Delete Block</button>
                 </div>
                 ${subjectsHtml}
-                <button class="auth-btn" style="width:100%" onclick="addSubject(${sem.id})">+ ADD SUBJECT</button>`;
+                <button class="auth-btn" style="width:100%; margin-top:15px; background:var(--primary);" onclick="addSubject(${sem.id})">+ ADD NEW SUBJECT</button>`;
                 container.appendChild(card);
             });
 
             const cgpa = totalCH > 0 ? (totalQP / totalCH) : 0;
             document.getElementById('cgpaVal').innerText = cgpa.toFixed(2);
-            document.getElementById('degreeStatus').innerText = `Total Credits: ${totalCH}`;
+            document.getElementById('degreeStatus').innerText = `Total Earned Credits: ${totalCH}`;
         }
 
-        // --- 4. FILE PARSING (TRY-CATCH ADDED) ---
+        // --- 5. PDF & EXCEL PARSING ENGINE ---
         async function handlePdfUpload(e) {
             const file = e.target.files[0]; if (!file) return;
             try {
                 showLoading(true);
                 const pdf = await pdfjsLib.getDocument(new Uint8Array(await file.arrayBuffer())).promise;
-                alert("PDF Processed Successfully!");
-                saveAndRender();
-            } catch (err) { alert("PDF Error: " + err.message); }
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    fullText += content.items.map(s => s.str).join(" ") + " ";
+                }
+
+                const termSections = fullText.split(/Term:\s+/);
+                if (termSections.length <= 1) throw new Error("Format Mismatch: Official transcript format not found.");
+
+                let newSemesters = [];
+                termSections.slice(1).forEach(section => {
+                    const words = section.trim().split(" ");
+                    const semesterObj = { id: Date.now() + Math.random(), name: words[0] + " " + words[1], subjects: [] };
+                    const rowRegex = /([A-Z]{2,4}\d{3,4})\s+(.+?)\s+(\d\.00)\s+(\d{1,3})\s+([A-F][+-]?)/g;
+                    let match;
+                    while ((match = rowRegex.exec(section)) !== null) {
+                        semesterObj.subjects.push({ id: Date.now() + Math.random(), title: match[2].trim(), ch: parseFloat(match[3]), simpleObt: parseFloat(match[4]), mode: 'simple', assessments: [] });
+                    }
+                    if (semesterObj.subjects.length > 0) newSemesters.push(semesterObj);
+                });
+
+                if (newSemesters.length > 0) {
+                    semesterData = [...semesterData, ...newSemesters];
+                    await saveAndRender();
+                    alert(`Successfully imported ${newSemesters.length} Semesters.`);
+                }
+            } catch (err) { alert("Parsing Error: " + err.message); }
             finally { showLoading(false); }
         }
 
-        async function handleExcelUpload(e) {
-            const file = e.target.files[0]; if (!file) return;
-            try {
-                showLoading(true);
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                alert("Excel Data Imported!");
-                saveAndRender();
-            } catch (err) { alert("Excel Error: " + err.message); }
-            finally { showLoading(false); }
-        }
-
-        // --- 5. UI HELPERS ---
+        // --- 6. CORE LOGIC HELPERS ---
         function addSemester() { semesterData.push({ id: Date.now(), name: `Semester ${semesterData.length + 1}`, subjects: [] }); saveAndRender(); }
-        function addSubject(semId) { semesterData.find(s => s.id === semId).subjects.push({ id: Date.now(), title: 'New Subject', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); saveAndRender(); }
-        function switchMode(semId, subId, mode) { const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId); sub.mode = mode; if (mode === 'assessment' && sub.assessments.length === 0) sub.assessments.push({ type: 'Final', weight: 100, total: 100, obt: 0 }); saveAndRender(); }
-        function updateAsm(semId, subId, aIdx, field, val) { const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId); sub.assessments[aIdx][field] = parseFloat(val || 0); saveAndRender(); }
-
+        function deleteSem(id) { if (confirm("Erase this entire block?")) { semesterData = semesterData.filter(s => s.id !== id); saveAndRender(); } }
+        function addSubject(semId) { semesterData.find(s => s.id === semId).subjects.push({ id: Date.now(), title: 'New Course', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); saveAndRender(); }
+        function deleteSubject(semId, subId) { const sem = semesterData.find(s => s.id === semId); sem.subjects = sem.subjects.filter(sub => sub.id !== subId); saveAndRender(); }
+        function switchMode(semId, subId, mode) {
+            const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId);
+            sub.mode = mode;
+            if (mode === 'assessment' && sub.assessments.length === 0) sub.assessments.push({ type: 'Final', weight: 100, obt: 0, total: 100 });
+            saveAndRender();
+        }
+        function addAssessment(semId, subId) { semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId).assessments.push({ type: 'Assignment', weight: 10, obt: 0, total: 40 }); saveAndRender(); }
+        function updateAsm(semId, subId, aIdx, field, val) {
+            const sub = semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId);
+            sub.assessments[aIdx][field] = (field === 'type') ? val : parseFloat(val || 0);
+            saveAndRender();
+        }
+        function deleteAssessment(semId, subId, aIdx) { semesterData.find(s => s.id === semId).subjects.find(x => x.id === subId).assessments.splice(aIdx, 1); saveAndRender(); }
         function toggleAuthMode(mode) {
             document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
             document.getElementById('regForm').style.display = mode === 'register' ? 'block' : 'none';
         }
-        function toggleEmailDisplay() { isEmailVisible = !isEmailVisible; document.getElementById('userEmailTag').textContent = isEmailVisible ? activeUser.email : "••••••••••••••••"; }
         async function logout() { await auth.signOut(); location.reload(); }
-        function clearDashboard() { if (confirm("Erase all data?")) { semesterData = []; saveAndRender(); } }
 
+        // Bind Events
         document.getElementById('pdfInput').addEventListener('change', handlePdfUpload);
-        document.getElementById('fileInput').addEventListener('change', handleExcelUpload);
     </script>
 </body>
 
