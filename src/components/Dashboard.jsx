@@ -1,883 +1,421 @@
-// import React from 'react';
-// import { motion, AnimatePresence } from 'framer-motion';
-// import { auth } from '../services/firebase';
-// import { parseSuperiorTranscript, calculateGrade } from '../services/pdfParser';
-
-// const Dashboard = ({ user, semesters, onUpdate }) => {
-
-//     // --- Core Logic: PDF Import & State Management ---
-//     const handlePdfImport = async (e) => {
-//         if (!e.target.files[0]) return;
-//         try {
-//             const data = await parseSuperiorTranscript(e.target.files[0]);
-//             onUpdate([...semesters, ...data]); //
-//         } catch (err) {
-//             alert("Superior PDF Error: " + err.message);
-//         }
-//     };
-
-//     const addSemester = () => {
-//         onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }]);
-//     };
-
-//     const deleteSemester = (sId) => {
-//         if (window.confirm("Poora semester delete kar dain?")) {
-//             onUpdate(semesters.filter(s => s.id !== sId));
-//         }
-//     };
-
-//     // --- Math Engine: Dual Mode Calculation ---
-//     const getSubjectStats = (sub) => {
-//         if (sub.mode === 'assessment' && sub.assessments?.length > 0) {
-//             let totalWeight = 0, weightedScore = 0;
-//             sub.assessments.forEach(a => {
-//                 const w = parseFloat(a.weight) || 0;
-//                 totalWeight += w;
-//                 weightedScore += ((parseFloat(a.obt) || 0) / (parseFloat(a.total) || 1)) * w;
-//             });
-//             return { score: weightedScore, weight: totalWeight, gInfo: calculateGrade(weightedScore) };
-//         }
-//         const score = parseFloat(sub.simpleObt) || 0;
-//         return { score, weight: 100, gInfo: calculateGrade(score) }; //
-//     };
-
-//     // Global GPA Calculation
-//     let totalQP = 0, totalCH = 0;
-//     semesters.forEach(s => s.subjects.forEach(sub => {
-//         const stats = getSubjectStats(sub);
-//         const ch = parseFloat(sub.ch) || 0;
-//         totalQP += (stats.gInfo.p * ch); 
-//         totalCH += ch;
-//     }));
-//     const cgpa = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
-
-//     return (
-//         <div className="min-h-screen bg-slate-50 pb-20 font-sans">
-//             {/* LUXURY HEADER */}
-//             <header className="bg-linear-to-br from-blue-900 to-blue-700 pt-10 pb-24 px-6 rounded-b-[3.5rem] shadow-2xl text-white">
-//                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-//                     <div className="flex items-center gap-5">
-//                         <img src={user.photoURL || `src/assets/uni_logo.png`} 
-//                              className="w-20 h-20 rounded-full border-4 border-white/20 shadow-xl" alt="User" />
-//                         <div>
-//                             <h2 className="text-2xl font-extrabold tracking-tight">Welcome back, {user.displayName}</h2>
-//                             <p className="text-blue-100/80 text-sm font-medium">{user.email}</p>
-//                         </div>
-//                     </div>
-                    
-//                     <motion.div initial={{scale: 0.9}} animate={{scale: 1}} className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2.5rem] text-center min-w-55">
-//                         <span className="text-[11px] font-black tracking-widest uppercase opacity-70">TOTAL CGPA</span>
-//                         <h1 className="text-6xl font-black my-2 leading-none">{cgpa}</h1>
-//                         <p className="text-xs font-bold opacity-60 italic">Credits: {totalCH}</p>
-//                     </motion.div>
-//                 </div>
-//             </header>
-
-//             <main className="max-w-5xl mx-auto -mt-14 px-6">
-//                 {/* GLOBAL ACTIONS */}
-//                 <div className="flex flex-wrap justify-center gap-4 mb-12">
-//                     <button onClick={() => document.getElementById('mainPdfIn').click()}
-//                             className="bg-white text-blue-700 px-6 py-2 rounded-2xl font-black shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 border border-blue-100">
-//                         📄 Import Official PDF
-//                     </button>
-                    
-//                     <input type="file" id="mainPdfIn" hidden onChange={handlePdfImport} accept=".pdf" />
-//                 </div>
-
-//                 <AnimatePresence>
-//                     {semesters.map((sem, sIdx) => (
-//                         <div key={sem.id} className="mb-16">
-//                             <div className="flex items-center gap-6 mb-8 px-4">
-//                                 <input className="bg-transparent border-none text-slate-400 font-black uppercase tracking-[0.3em] text-sm focus:outline-none w-fit"
-//                                        value={sem.name} onChange={(e) => { const n = [...semesters]; n[sIdx].name = e.target.value; onUpdate(n); }} />
-//                                 <div className="h-px bg-slate-200 grow"></div>
-//                                 <button onClick={() => deleteSemester(sem.id)} className="text-red-300 hover:text-red-500 font-bold text-xs uppercase">Delete Sem</button>
-//                             </div>
-
-//                             {sem.subjects.map((sub, subIdx) => {
-//                                 const stats = getSubjectStats(sub);
-//                                 return (
-//                                     <motion.div layout key={sub.id} className="bg-white border-2 border-black rounded-[2.5rem] p-8 mb-8 shadow-sm relative hover:shadow-md transition-shadow">
-//                                         <button className="absolute -top-3 -right-3 bg-red-500 text-white w-9 h-9 rounded-xl shadow-lg flex items-center justify-center font-black hover:scale-110 transition-transform"
-//                                                 onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }}>✕</button>
-
-//                                         {/* HEADER: TITLE & CH */}
-//                                         <div className="flex flex-col xl:flex-row gap-8">
-//                                             <div className="grow space-y-6">
-//                                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-//                                                     <div className="md:col-span-3">
-//                                                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Subject Name</label>
-//                                                         <input className="w-full bg-slate-50 border-2 border-black rounded-xl px-5 py-4 focus:border-blue-500 outline-none font-bold text-lg"
-//                                                                value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} />
-//                                                     </div>
-//                                                     <div>
-//                                                         <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block text-center">CH</label>
-//                                                         <input type="number" className="w-full bg-slate-50 border-2 border-black rounded-xl px-5 py-4 focus:border-blue-500 outline-none font-bold text-lg text-center"
-//                                                                value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} />
-//                                                     </div>
-//                                                 </div>
-
-//                                                 {/* MODE TOGGLE */}
-//                                                 <div className="inline-flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-//                                                     <button className={`px-6 py-2.5 rounded-xl text-[11px] font-black tracking-widest transition-all ${sub.mode !== 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-//                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE</button>
-//                                                     <button className={`px-6 py-2.5 rounded-xl text-[11px] font-black tracking-widest transition-all ${sub.mode === 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-//                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ASSESSMENT</button>
-//                                                 </div>
-//                                             </div>
-
-//                                             {/* GRADE PREVIEW */}
-//                                             <div className="xl:w-56 bg-blue-50/50 border-2 border-blue-100 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center">
-//                                                 <span className="text-[10px] font-black text-blue-400 uppercase mb-1">Percentage</span>
-//                                                 <div className="text-4xl font-black text-blue-800">{stats.score.toFixed(0)}%</div>
-//                                                 <div className="mt-4 px-5 py-2 bg-blue-600 text-white rounded-xl font-black text-lg shadow-md tracking-wider">GPA: {stats.gInfo.p.toFixed(2)}</div>
-//                                             </div>
-//                                         </div>
-
-//                                         {/* DYNAMIC CONTENT AREA */}
-//                                         <div className="mt-8">
-//                                             {sub.mode !== 'assessment' ? (
-//                                                 <div className="p-6 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
-//                                                     <label className="text-[11px] font-black text-slate-400 uppercase mb-3 block">Total Obtained Marks (out of 100)</label>
-//                                                     <input type="number" className="w-full bg-white border-2 border-black rounded-xl px-5 py-4 font-black text-xl text-blue-600"
-//                                                            value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
-//                                                 </div>
-//                                             ) : (
-//                                                 <div className="space-y-6">
-//                                                     {stats.weight !== 100 && (
-//                                                         <motion.div initial={{x: -10}} animate={{x: 0}} className="bg-amber-50 border-l-4 border-amber-400 p-4 text-amber-800 text-xs font-bold rounded-r-xl">
-//                                                             ⚠️ Warning: Total weightage is {stats.weight}% (Must add up to 100%)
-//                                                         </motion.div>
-//                                                     )}
-
-//                                                     <div className="hidden md:grid grid-cols-12 gap-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-//                                                         <div className="col-span-4">Type</div>
-//                                                         <div className="col-span-2 text-center">W%</div>
-//                                                         <div className="col-span-2 text-center">Tot</div>
-//                                                         <div className="col-span-2 text-center">Obt</div>
-//                                                         <div className="col-span-2"></div>
-//                                                     </div>
-
-//                                                     <AnimatePresence>
-//                                                         {sub.assessments?.map((asm, aIdx) => (
-//                                                             <div key={asm.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100 items-center">
-//                                                                 <div className="md:col-span-4">
-//                                                                     <select className="w-full bg-white border-2 border-black rounded-xl p-3 font-bold text-sm outline-none cursor-pointer"
-//                                                                             value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
-//                                                                         <option>Quiz</option><option>Assignment</option><option>Mid Exam</option><option>Final Exam</option><option>Project</option><option>Presentation</option><option>Other</option>
-//                                                                     </select>
-//                                                                 </div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="W%" className="w-full bg-white border-2 border-black rounded-xl p-3 text-sm font-bold text-center"
-//                                                                            value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="Tot" className="w-full bg-white border-2 border-black rounded-xl p-3 text-sm font-bold text-center"
-//                                                                            value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="Obt" className="w-full bg-blue-50 border-2 border-blue-600 rounded-xl p-3 text-sm font-black text-center text-blue-700"
-//                                                                            value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2 text-right"><button className="text-red-400 hover:text-red-600 font-black text-[10px] uppercase tracking-tighter"
-//                                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>Remove</button></div>
-//                                                             </div>
-//                                                         ))}
-//                                                     </AnimatePresence>
-//                                                     <button className="w-full py-4 border-2 border-dashed border-slate-300 rounded-2xl text-slate-400 text-xs font-black hover:border-blue-400 hover:text-blue-600 transition-all uppercase tracking-widest"
-//                                                             onClick={() => {
-//                                                                 const n = [...semesters];
-//                                                                 if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
-//                                                                 n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type:'Quiz', weight:10, total:40, obt:0});
-//                                                                 onUpdate(n);
-//                                                             }}>+ Add Assessment Component</button>
-//                                                 </div>
-//                                             )}
-//                                         </div>
-//                                     </motion.div>
-//                                 );
-//                             })}
-                            
-//                             <button onClick={() => {
-//                                 const n = [...semesters];
-//                                 n[sIdx].subjects.push({id: Date.now(), title: 'New Course', ch: 3, simpleObt: 0, mode: 'simple', assessments: []});
-//                                 onUpdate(n);
-//                             }} className="w-full bg-green-50 text-green-600 border-2 border-dashed border-green-200 py-5 rounded-[2.5rem] font-black text-sm hover:bg-green-100 transition-colors uppercase tracking-[0.2em]">+ Add New Course to {sem.name}
-//                             </button>
-//                             <button onClick={addSemester} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all items-center">
-//                                 + Add Semester
-//                             </button>
-//                         </div>
-//                     ))}
-//                 </AnimatePresence>
-
-//                 <div className="flex flex-col items-center mt-20 gap-6">
-//                     <button onClick={() => window.print()} 
-//                             className="bg-purple-600 text-white px-12 py-5 rounded-[2.5rem] font-black shadow-2xl hover:bg-purple-700 hover:-translate-y-2 transition-all w-full max-w-md text-lg tracking-widest shadow-purple-200">
-//                         🖨️ PRINT ACADEMIC CARD
-//                     </button>
-//                     <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 transition-colors uppercase tracking-widest text-xs">Logout Session</button>
-//                 </div>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default Dashboard;
-
-
-// import React from 'react';
-// import { motion, AnimatePresence } from 'framer-motion';
-// import { auth } from '../services/firebase';
-// import { parseSuperiorTranscript, calculateGrade } from '../services/pdfParser';
-
-// const Dashboard = ({ user, semesters, onUpdate }) => {
-
-//     // --- Core Logic: Functionality preserved 100% ---
-//     const handlePdfImport = async (e) => {
-//         if (!e.target.files[0]) return;
-//         try {
-//             const data = await parseSuperiorTranscript(e.target.files[0]);
-//             onUpdate([...semesters, ...data]);
-//         } catch (err) {
-//             alert("Superior PDF Error: " + err.message);
-//         }
-//     };
-
-//     const addSemester = () => {
-//         onUpdate([...semesters, { id: Date.now(), name: 'New Semester', subjects: [] }]);
-//     };
-
-//     const deleteSemester = (sId) => {
-//         if (window.confirm("Poora semester delete kar dain?")) {
-//             onUpdate(semesters.filter(s => s.id !== sId));
-//         }
-//     };
-
-//     const getSubjectStats = (sub) => {
-//         let score = 0, weight = 0;
-//         if (sub?.mode === 'assessment' && sub?.assessments?.length > 0) {
-//             sub.assessments.forEach(a => {
-//                 const w = parseFloat(a.weight) || 0;
-//                 const obt = parseFloat(a.obt) || 0;
-//                 const tot = parseFloat(a.total) || 1;
-//                 weight += w;
-//                 score += (obt / tot) * w;
-//             });
-//         } else {
-//             score = parseFloat(sub?.simpleObt) || 0;
-//             weight = 100;
-//         }
-//         const gInfo = calculateGrade(score) || { g: 'F', p: 0.0 };
-//         return { score, weight, gInfo };
-//     };
-
-//     let totalQP = 0, totalCH = 0;
-//     (semesters || []).forEach(s => (s.subjects || []).forEach(sub => {
-//         const stats = getSubjectStats(sub);
-//         const ch = parseFloat(sub.ch) || 0;
-//         totalQP += (stats.gInfo.p * ch); 
-//         totalCH += ch;
-//     }));
-//     const cgpa = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
-
-//     return (
-//         <div className="min-h-screen bg-[#f8fafc] pb-24 font-sans text-slate-900">
-//             {/* 1. Header Section with Deep Gradient */}
-//             <header className="bg-gradient-to-br from-[#0f172a] via-[#1e3a8a] to-[#2563eb] pt-12 pb-32 px-6 rounded-b-[4rem] shadow-2xl text-white">
-//                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-//                     <div className="flex items-center gap-6">
-//                         <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}&background=random`} 
-//                              className="w-20 h-20 rounded-full border-4 border-white/20 shadow-xl" alt="Profile" />
-//                         <div>
-//                             <h2 className="text-3xl font-black tracking-tight leading-tight">Welcome back, {user?.displayName}</h2>
-//                             <p className="text-blue-100/70 text-sm font-medium tracking-wide italic">{user?.email}</p>
-//                         </div>
-//                     </div>
-                    
-//                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
-//                                 className="bg-white/10 backdrop-blur-3xl border border-white/20 p-8 rounded-[3rem] text-center min-w-[240px] shadow-inner">
-//                         <span className="text-[11px] font-black tracking-[0.3em] uppercase opacity-60">Total CGPA</span>
-//                         <h1 className="text-7xl font-black my-1 tracking-tighter leading-none">{cgpa}</h1>
-//                         <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mt-2">Credits: {totalCH}</p>
-//                     </motion.div>
-//                 </div>
-//             </header>
-
-//             <main className="max-w-5xl mx-auto -mt-20 px-6">
-//                 {/* 2. Primary Action Bar */}
-//                 <div className="flex flex-wrap justify-center gap-4 mb-16">
-//                     <button onClick={() => document.getElementById('mainPdfIn').click()}
-//                             className="bg-white text-blue-700 px-10 py-5 rounded-2xl font-black shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 border border-blue-100 group">
-//                         <span className="text-xl group-hover:rotate-12 transition-transform">📄</span> Import Official PDF
-//                     </button>
-//                     <button onClick={addSemester} className="bg-blue-600 text-white px-10 py-5 rounded-2xl font-black shadow-lg hover:bg-blue-700 hover:-translate-y-1 transition-all">
-//                         + Add Semester
-//                     </button>
-//                     <input type="file" id="mainPdfIn" hidden onChange={handlePdfImport} accept=".pdf" />
-//                 </div>
-
-//                 <AnimatePresence>
-//                     {(semesters || []).map((sem, sIdx) => (
-//                         <motion.div layout initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} key={sem.id} className="mb-24">
-//                             {/* Semester Header with Automatic Numbering */}
-//                             <div className="flex items-center gap-6 mb-10 px-6">
-//                                 <div className="flex items-center gap-3">
-//                                     <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-xs">{sIdx + 1}</span>
-//                                     <input className="bg-transparent border-none text-slate-800 font-black uppercase tracking-[0.4em] text-sm outline-none focus:text-blue-600 w-fit"
-//                                            value={sem.name} onChange={(e) => { const n = [...semesters]; n[sIdx].name = e.target.value; onUpdate(n); }} />
-//                                 </div>
-//                                 <div className="h-[2px] bg-slate-200 grow"></div>
-//                                 <button onClick={() => deleteSemester(sem.id)} className="text-red-300 hover:text-red-500 font-bold text-[10px] uppercase tracking-widest transition-colors">Remove Semester</button>
-//                             </div>
-
-//                             {/* 3. Subject Cards */}
-//                             {(sem.subjects || []).map((sub, subIdx) => {
-//                                 const stats = getSubjectStats(sub);
-//                                 return (
-//                                     <div key={sub.id} className="bg-white border-2 border-slate-200 rounded-[3rem] p-8 md:p-12 mb-10 shadow-sm relative group hover:border-black transition-all hover:shadow-2xl">
-//                                         <button className="absolute -top-4 -right-4 bg-red-500 text-white w-10 h-10 rounded-2xl shadow-xl flex items-center justify-center font-black opacity-0 group-hover:opacity-100 transition-opacity z-10"
-//                                                 onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }}>✕</button>
-
-//                                         <div className="flex flex-col xl:flex-row gap-12">
-//                                             <div className="grow space-y-10">
-//                                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-//                                                     <div className="md:col-span-3">
-//                                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-3 block">Course Name</label>
-//                                                         <input className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-5 focus:border-black outline-none font-bold text-xl transition-all"
-//                                                                value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} />
-//                                                     </div>
-//                                                     <div>
-//                                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-3 block text-center">CH</label>
-//                                                         <input type="number" className="w-full bg-slate-50 border-2 border-slate-200 rounded-2xl px-6 py-5 outline-none font-black text-xl text-center focus:border-black"
-//                                                                value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} />
-//                                                     </div>
-//                                                 </div>
-
-//                                                 <div className="inline-flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
-//                                                     <button className={`px-10 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${sub.mode !== 'assessment' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
-//                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE</button>
-//                                                     <button className={`px-10 py-3.5 rounded-xl text-[10px] font-black tracking-widest transition-all ${sub.mode === 'assessment' ? 'bg-white shadow-md text-blue-600' : 'text-slate-500'}`}
-//                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ADVANCED</button>
-//                                                 </div>
-//                                             </div>
-
-//                                             {/* Grade Result Box */}
-//                                             <div className="xl:w-64 bg-slate-50 border-2 border-slate-100 rounded-[3.5rem] p-12 flex flex-col items-center justify-center text-center shadow-inner group-hover:bg-white transition-colors">
-//                                                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</span>
-//                                                 <div className="text-6xl font-black text-slate-900 tracking-tighter">{(stats.score || 0).toFixed(0)}%</div>
-//                                                 <div className="mt-6 px-8 py-3 bg-blue-600 text-white rounded-2xl font-black text-xl shadow-lg shadow-blue-200">
-//                                                     {stats.gInfo?.g} ({(stats.gInfo?.p || 0.0).toFixed(1)})
-//                                                 </div>
-//                                             </div>
-//                                         </div>
-
-//                                         {/* Dynamic Logic Area */}
-//                                         <div className="mt-12">
-//                                             {sub.mode !== 'assessment' ? (
-//                                                 <div className="p-10 bg-blue-50/50 rounded-[3rem] border-2 border-dashed border-blue-200 text-center">
-//                                                     <label className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] mb-4 block">Total Obtained Marks</label>
-//                                                     <input type="number" className="w-full max-w-xs bg-white border-2 border-blue-200 rounded-3xl px-8 py-6 font-black text-5xl text-center text-blue-700 outline-none shadow-sm focus:border-blue-500"
-//                                                            value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
-//                                                 </div>
-//                                             ) : (
-//                                                 <div className="space-y-6">
-//                                                     {stats.weight !== 100 && (
-//                                                         <div className="bg-amber-50 border-l-8 border-amber-400 p-5 text-amber-900 text-[11px] font-bold rounded-r-2xl shadow-sm flex items-center gap-3">
-//                                                             <span>⚠️</span> Total weightage is {stats.weight}% (Should be 100%)
-//                                                         </div>
-//                                                     )}
-//                                                     {sub.assessments?.map((asm, aIdx) => (
-//                                                         <div key={asm.id} className="grid grid-cols-1 md:grid-cols-12 gap-5 p-6 bg-slate-50/50 rounded-3xl border border-slate-100 items-center hover:bg-white transition-colors">
-//                                                             <div className="md:col-span-4">
-//                                                                 <select className="w-full bg-white border-2 border-slate-200 rounded-xl p-4 font-bold text-sm outline-none focus:border-black appearance-none"
-//                                                                         value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
-//                                                                     <option>Quiz</option><option>Assignment</option><option>Mid Exam</option><option>Final Exam</option><option>Project</option><option>Presentation</option>
-//                                                                 </select>
-//                                                             </div>
-//                                                             <div className="md:col-span-2"><input type="number" placeholder="W%" className="w-full bg-white border-2 border-slate-200 rounded-xl p-4 text-sm font-bold text-center outline-none focus:border-black"
-//                                                                        value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
-//                                                             <div className="md:col-span-2"><input type="number" placeholder="Tot" className="w-full bg-white border-2 border-slate-200 rounded-xl p-4 text-sm font-bold text-center outline-none focus:border-black"
-//                                                                        value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
-//                                                             <div className="md:col-span-2"><input type="number" placeholder="Obt" className="w-full bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-sm font-black text-center text-blue-700 outline-none focus:border-blue-600"
-//                                                                        value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
-//                                                             <div className="md:col-span-2 text-right"><button className="text-red-400 hover:text-red-600 font-black text-[10px] uppercase tracking-widest transition-colors"
-//                                                                         onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>Remove</button></div>
-//                                                         </div>
-//                                                     ))}
-//                                                     <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-[2.5rem] text-slate-400 text-xs font-black tracking-[0.3em] hover:bg-slate-50 hover:border-blue-400 hover:text-blue-600 transition-all uppercase"
-//                                                             onClick={() => {
-//                                                                 const n = [...semesters];
-//                                                                 if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
-//                                                                 n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type:'Quiz', weight:10, total:40, obt:0});
-//                                                                 onUpdate(n);
-//                                                             }}>+ Add Component</button>
-//                                                 </div>
-//                                             )}
-//                                         </div>
-//                                     </div>
-//                                 );
-//                             })}
-//                             <button onClick={() => {
-//                                 const n = [...semesters];
-//                                 n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []});
-//                                 onUpdate(n);
-//                             }} className="w-full bg-white text-slate-400 border-2 border-dashed border-slate-200 py-7 rounded-[3.5rem] font-black text-[10px] tracking-[0.4em] hover:border-black hover:text-black transition-all shadow-sm">+ ADD COURSE TO {sem.name.toUpperCase()}</button>
-//                         </motion.div>
-//                     ))}
-//                 </AnimatePresence>
-
-//                 {/* 4. Final Actions */}
-//                 <div className="flex flex-col items-center mt-32 space-y-8">
-//                     <button onClick={() => window.print()} 
-//                             className="bg-[#0f172a] text-white px-16 py-7 rounded-[3.5rem] font-black shadow-2xl hover:bg-black hover:-translate-y-2 transition-all w-full max-w-xl text-xl tracking-[0.3em] shadow-slate-300">
-//                         🖨️ PRINT TRANSCRIPT
-//                     </button>
-//                     <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase tracking-[0.4em] text-[10px] pb-10">End Academic Session</button>
-//                 </div>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default Dashboard;
-
-
-// import React from 'react';
-// import { motion, AnimatePresence } from 'framer-motion';
-// import { auth } from '../services/firebase';
-// import { parseSuperiorTranscript, calculateGrade } from '../services/pdfParser';
-
-// const Dashboard = ({ user, semesters, onUpdate }) => {
-
-//     // --- 🧮 Math Engine: Functionality ---
-//     const getSubjectStats = (sub) => {
-//         let score = 0, weight = 0;
-//         if (sub?.mode === 'assessment' && sub?.assessments?.length > 0) {
-//             sub.assessments.forEach(a => {
-//                 const w = parseFloat(a.weight) || 0;
-//                 const obt = parseFloat(a.obt) || 0;
-//                 const tot = parseFloat(a.total) || 1;
-//                 weight += w;
-//                 score += (obt / tot) * w;
-//             });
-//         } else {
-//             score = parseFloat(sub?.simpleObt) || 0;
-//             weight = 100;
-//         }
-//         const gInfo = calculateGrade(score) || { g: 'F', p: 0.0 };
-//         return { score, weight, gInfo };
-//     };
-
-//     // ✅ Per Semester SGPA Calculation
-//     const calculateSGPA = (subjects) => {
-//         let semQP = 0, semCH = 0;
-//         (subjects || []).forEach(sub => {
-//             const stats = getSubjectStats(sub);
-//             const ch = parseFloat(sub.ch) || 0;
-//             semQP += (stats.gInfo.p * ch);
-//             semCH += ch;
-//         });
-//         return (semCH > 0 ? (semQP / semCH) : 0).toFixed(2);
-//     };
-
-//     // Global CGPA Calculation
-//     let totalQP = 0, totalCH = 0;
-//     (semesters || []).forEach(s => (s.subjects || []).forEach(sub => {
-//         const stats = getSubjectStats(sub);
-//         const ch = parseFloat(sub.ch) || 0;
-//         totalQP += (stats.gInfo.p * ch); 
-//         totalCH += ch;
-//     }));
-//     const cgpa = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
-
-//     return (
-//         <div className="min-h-screen bg-[#f8fafc] pb-24 font-sans text-slate-900">
-//             {/* Header Section */}
-//             <header className="bg-linear-to-br from-[#0f172a] via-superior-blue to-[#2563eb] pt-12 pb-32 px-6 rounded-b-[4rem] shadow-2xl text-white">
-//                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-//                     <div className="flex items-center gap-6">
-//                         <img src={user?.photoURL || `src/assets/uni_logo.png`} 
-//                              className="w-20 h-20 rounded-full border-4 border-white/20 shadow-xl" alt="Profile" />
-//                         <div>
-//                             <h2 className="text-3xl font-black tracking-tight leading-tight">{user?.displayName}</h2>
-//                             <p className="text-blue-100/70 text-sm font-medium italic">{user?.email}</p>
-//                         </div>
-//                     </div>
-                    
-//                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
-//                                 className="bg-white/10 backdrop-blur-3xl border border-white/20 p-8 rounded-[3rem] text-center min-w-60 shadow-inner">
-//                         <span className="text-[11px] font-black tracking-[0.3em] uppercase opacity-60 text-blue-100">OVERALL CGPA</span>
-//                         <h1 className="text-7xl font-black my-1 tracking-tighter leading-none">{cgpa}</h1>
-//                         <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mt-2">Credits: {totalCH}</p>
-//                     </motion.div>
-//                 </div>
-//             </header>
-
-//             <main className="max-w-5xl mx-auto -mt-20 px-6">
-//                 {/* Global Action Bar */}
-//                 <div className="flex flex-wrap justify-center gap-4 mb-16">
-//                     <button onClick={() => document.getElementById('mainPdfIn').click()}
-//                             className="bg-white text-blue-700 px-10 py-5 rounded-2xl font-black shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all flex items-center gap-3 border border-blue-100">
-//                         📄 Import PDF
-//                     </button>
-//                     <button onClick={() => onUpdate([...semesters, { id: Date.now(), name: 'New Semester', subjects: [] }])} 
-//                             className="bg-blue-600 text-white px-10 py-5 rounded-2xl font-black shadow-lg hover:bg-blue-700 hover:-translate-y-1 transition-all">
-//                         + Add Semester
-//                     </button>
-//                     <input type="file" id="mainPdfIn" hidden onChange={(e) => {
-//                         if (!e.target.files[0]) return;
-//                         parseSuperiorTranscript(e.target.files[0]).then(data => onUpdate([...semesters, ...data]));
-//                     }} accept=".pdf" />
-//                 </div>
-
-//                 <AnimatePresence>
-//                     {(semesters || []).map((sem, sIdx) => {
-//                         const semSGPA = calculateSGPA(sem.subjects); // Calculate SGPA here
-//                         return (
-//                             <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={sem.id} className="mb-20">
-//                                 {/* Semester Header with SGPA Display */}
-//                                 <div className="flex items-center gap-6 mb-8 px-6">
-//                                     <div className="flex items-center gap-4">
-//                                         <span className="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black text-xs shadow-lg shadow-blue-200">{sIdx + 1}</span>
-//                                         <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
-//                                             <input className="bg-transparent border-none text-slate-800 font-black uppercase tracking-[0.3em] text-sm outline-none w-fit"
-//                                                    value={sem.name} onChange={(e) => { const n = [...semesters]; n[sIdx].name = e.target.value; onUpdate(n); }} />
-//                                             <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm">SGPA: {semSGPA}</span>
-//                                         </div>
-//                                     </div>
-//                                     <div className="h-0.5 bg-slate-200 grow"></div>
-//                                     <button onClick={() => onUpdate(semesters.filter(s => s.id !== sem.id))} className="text-red-300 hover:text-red-500 font-bold text-[10px] uppercase tracking-widest">Remove</button>
-//                                 </div>
-
-//                                 {(sem.subjects || []).map((sub, subIdx) => {
-//                                     const stats = getSubjectStats(sub);
-//                                     return (
-//                                         <div key={sub.id} className="bg-white border-2 border-slate-200 rounded-[2.5rem] p-6 md:p-8 mb-6 shadow-sm relative group hover:border-black transition-all hover:shadow-xl">
-//                                             <button className="absolute -top-3 -right-3 bg-red-500 text-white w-8 h-8 rounded-xl shadow-lg flex items-center justify-center font-black opacity-0 group-hover:opacity-100 transition-opacity z-10"
-//                                                     onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }}>✕</button>
-
-//                                             <div className="flex flex-col xl:flex-row gap-6">
-//                                                 <div className="grow space-y-6">
-//                                                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-//                                                         <div className="md:col-span-3">
-//                                                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Course</label>
-//                                                             <input className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 focus:border-black outline-none font-bold text-base"
-//                                                                    value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} />
-//                                                         </div>
-//                                                         <div>
-//                                                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1 block text-center">CH</label>
-//                                                             <input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 outline-none font-black text-base text-center focus:border-black"
-//                                                                    value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} />
-//                                                         </div>
-//                                                     </div>
-
-//                                                     <div className="inline-flex bg-slate-50 p-1 rounded-xl border border-slate-200">
-//                                                         <button className={`px-6 py-2 rounded-lg text-[9px] font-black tracking-widest transition-all ${sub.mode !== 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-//                                                                 onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE</button>
-//                                                         <button className={`px-6 py-2 rounded-lg text-[9px] font-black tracking-widest transition-all ${sub.mode === 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-//                                                                 onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ADVANCED</button>
-//                                                     </div>
-//                                                 </div>
-
-//                                                 {/* Grade Result Box - Shrinked Padding */}
-//                                                 <div className="xl:w-48 bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-6 flex flex-col items-center justify-center text-center shadow-inner group-hover:bg-white transition-colors">
-//                                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</span>
-//                                                     <div className="text-3xl font-black text-slate-900 tracking-tighter">{(stats.score || 0).toFixed(0)}%</div>
-//                                                     <div className="mt-4 px-4 py-1.5 bg-blue-600 text-white rounded-xl font-black text-base shadow-lg shadow-blue-200">
-//                                                         {stats.gInfo?.g} ({(stats.gInfo?.p || 0.0).toFixed(1)})
-//                                                     </div>
-//                                                 </div>
-//                                             </div>
-
-//                                             {/* Content Area - Shrinked Padding */}
-//                                             <div className="mt-6">
-//                                                 {sub.mode !== 'assessment' ? (
-//                                                     <div className="p-6 bg-blue-50/30 rounded-[2.5rem] border-2 border-dashed border-blue-100 text-center">
-//                                                         <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 block">Total Obtained Marks</label>
-//                                                         <input type="number" className="w-full max-w-xs bg-white border-2 border-blue-100 rounded-2xl px-6 py-4 font-black text-3xl text-center text-blue-700 outline-none"
-//                                                                value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
-//                                                     </div>
-//                                                 ) : (
-//                                                     <div className="space-y-4">
-//                                                         {sub.assessments?.map((asm, aIdx) => (
-//                                                             <div key={asm.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100 items-center">
-//                                                                 <div className="md:col-span-4">
-//                                                                     <select className="w-full bg-white border border-slate-200 rounded-xl p-3 font-bold text-xs outline-none"
-//                                                                             value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
-//                                                                         <option>Quiz</option><option>Assignment</option><option>Mid Exam</option><option>Final Exam</option><option>Project</option>
-//                                                                     </select>
-//                                                                 </div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="W%" className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-center"
-//                                                                            value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="Tot" className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-center"
-//                                                                            value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2"><input type="number" placeholder="Obt" className="w-full bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs font-black text-center text-blue-700"
-//                                                                            value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
-//                                                                 <div className="md:col-span-2 text-right"><button className="text-red-400 font-black text-[9px] uppercase tracking-widest"
-//                                                                             onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>Remove</button></div>
-//                                                             </div>
-//                                                         ))}
-//                                                         <button className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-[10px] font-black tracking-[0.3em] hover:bg-slate-50"
-//                                                                 onClick={() => {
-//                                                                     const n = [...semesters];
-//                                                                     if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
-//                                                                     n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type:'Quiz', weight:10, total:40, obt:0});
-//                                                                     onUpdate(n);
-//                                                                 }}>+ ADD COMPONENT</button>
-//                                                     </div>
-//                                                 )}
-//                                             </div>
-//                                         </div>
-//                                     );
-//                                 })}
-//                                 <button onClick={() => {
-//                                     const n = [...semesters];
-//                                     n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []});
-//                                     onUpdate(n);
-//                                 }} className="w-full bg-white text-slate-400 border-2 border-dashed border-slate-200 py-5 rounded-[2.5rem] font-black text-[9px] tracking-[0.4em] hover:border-black hover:text-black transition-all shadow-sm">+ ADD COURSE</button>
-//                             </motion.div>
-//                         );
-//                     })}
-//                 </AnimatePresence>
-
-//                 <div className="flex flex-col items-center mt-32 space-y-8">
-//                     <button onClick={() => window.print()} 
-//                             className="bg-[#0f172a] text-white px-16 py-7 rounded-[3.5rem] font-black shadow-2xl hover:scale-105 active:scale-95 transition-all w-full max-w-xl text-xl tracking-[0.3em]">
-//                         🖨️ PRINT TRANSCRIPT
-//                     </button>
-//                     <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase tracking-[0.4em] text-[10px] pb-10">End Session</button>
-//                 </div>
-//             </main>
-//         </div>
-//     );
-// };
-
-// export default Dashboard;
-
-
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { auth } from '../services/firebase';
+import Tesseract from 'tesseract.js'; // Added for OCR
+import { auth, db } from '../services/firebase';
 import { parseSuperiorTranscript, calculateGrade } from '../services/pdfParser';
 
-const Dashboard = ({ user, semesters, onUpdate }) => {
+// Animation Variants
+const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 20 } } };
+const modalVariants = { hidden: { opacity: 0, scale: 0.9, y: 40 }, visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } }, exit: { opacity: 0, scale: 0.9, y: 20 } };
 
-    // --- Math Engine & Functionality ---
+const Dashboard = ({ user, semesters, onUpdate }) => {
+    const [collapsed, setCollapsed] = useState({ sems: [], subs: [] });
+    const [showSettings, setShowSettings] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(false);
+    const [showGradeTable, setShowGradeTable] = useState(false);
+    const [showAnalytics, setShowAnalytics] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isParsing, setIsParsing] = useState(false); // Used for both PDF and Image
+
+    // --- 1. FIREBASE LOAD/SAVE LOGIC ---
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (user?.uid) {
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists && doc.data().semesters) onUpdate(doc.data().semesters);
+                } catch (err) { console.error("Firebase Load Error:", err); }
+            }
+        };
+        const hasSeenGuide = localStorage.getItem('hasSeenAcademicGuideV5');
+        if (!hasSeenGuide) setTimeout(() => setShowInstructions(true), 500);
+        fetchUserData();
+    }, [user?.uid]);
+
+    useEffect(() => {
+        const saveToCloud = async () => {
+            if (user?.uid && semesters.length > 0) {
+                setIsSyncing(true);
+                try {
+                    await db.collection('users').doc(user.uid).set({ semesters, lastUpdated: new Date().toISOString() }, { merge: true });
+                    setTimeout(() => setIsSyncing(false), 1500);
+                } catch (err) { setIsSyncing(false); }
+            }
+        };
+        const timer = setTimeout(() => saveToCloud(), 3000);
+        return () => clearTimeout(timer);
+    }, [semesters, user?.uid]);
+
+    // Assessment Logic
+    const [assessmentTypes, setAssessmentTypes] = useState(['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Class participation', 'Others']);
+    const [newType, setNewType] = useState("");
+
+    const addType = () => {
+        if (newType.trim() && !assessmentTypes.includes(newType.trim())) {
+            setAssessmentTypes([...assessmentTypes, newType.trim()]);
+            setNewType("");
+        }
+    };
+
+    const updateType = (index, newValue) => {
+        const updated = [...assessmentTypes];
+        updated[index] = newValue;
+        setAssessmentTypes(updated);
+    };
+
+    const toggleCollapse = (type, id) => {
+        setCollapsed(prev => ({
+            ...prev,
+            [type]: prev[type].includes(id) ? prev[type].filter(item => item !== id) : [...prev[type], id]
+        }));
+    };
+
+    // --- 2. SMART OCR SCANNER (For Assessment Images) ---
+    const handleImageScan = async (e, sIdx, subIdx) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsParsing(true);
+        try {
+            const { data: { text } } = await Tesseract.recognize(file, 'eng');
+            console.log("OCR Extracted Text:", text); // Debugging ke liye
+
+            const lines = text.split('\n');
+            const newAssessments = [];
+
+            // Pattern: [Any Text] [Numbers for Weight] [Numbers for Max] [Numbers for Obt]
+            // Yeh Regex Quiz 1, Quiz 2 wagera ko bhi support karega
+            const rowRegex = /(.+?)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)$/;
+
+            lines.forEach(line => {
+                // Garbage characters aur lines ko saaf karna
+                const cleanLine = line.replace(/[|_]/g, ' ').replace(/\s+/g, ' ').trim();
+                const match = cleanLine.match(rowRegex);
+                
+                if (match) {
+                    const name = match[1].trim();
+                    const weight = parseFloat(match[2].replace(',', '.'));
+                    const max = parseFloat(match[3].replace(',', '.'));
+                    const obt = parseFloat(match[4].replace(',', '.'));
+
+                    // Header labels ko filter karna taake ghalti se data mein na aayein
+                    const isHeader = /Assessment|Weightage|Max|Obtained|Total|Mark/i.test(name);
+                    
+                    if (!isHeader && !isNaN(weight) && !isNaN(max) && !isNaN(obt)) {
+                        newAssessments.push({
+                            id: Date.now() + Math.random(),
+                            type: name,
+                            weight: weight,
+                            total: max,
+                            obt: obt
+                        });
+                    }
+                }
+            });
+
+            if (newAssessments.length > 0) {
+                const n = [...semesters];
+                n[sIdx].subjects[subIdx].mode = 'assessment';
+                n[sIdx].subjects[subIdx].assessments = [...(n[sIdx].subjects[subIdx].assessments || []), ...newAssessments];
+                onUpdate(n);
+            } else {
+                alert("Could not detect marks table. Please use a clear crop of the table area.");
+            }
+        } catch (err) {
+            alert("Scanner error. Please try again.");
+        } finally {
+            setIsParsing(false);
+            e.target.value = null; 
+        }
+    };
+
+    // --- 3. PDF IMPORT HANDLER ---
+    const handlePdfImport = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setIsParsing(true);
+        try {
+            const data = await parseSuperiorTranscript(file);
+            onUpdate([...semesters, ...data]);
+        } catch (err) { alert("PDF format incorrect."); }
+        finally { setIsParsing(false); e.target.value = null; }
+    };
+
+    // --- Math Engine & Predictor ---
     const getSubjectStats = (sub) => {
         let score = 0, weight = 0;
         if (sub?.mode === 'assessment' && sub?.assessments?.length > 0) {
             sub.assessments.forEach(a => {
                 const w = parseFloat(a.weight) || 0;
-                const obt = parseFloat(a.obt) || 0;
                 const tot = parseFloat(a.total) || 1;
                 weight += w;
-                score += (obt / tot) * w;
+                score += ((parseFloat(a.obt) || 0) / tot) * w;
             });
-        } else {
-            score = parseFloat(sub?.simpleObt) || 0;
-            weight = 100;
-        }
+        } else { score = parseFloat(sub?.simpleObt) || 0; weight = 100; }
+        
         const gInfo = calculateGrade(score) || { g: 'F', p: 0.0 };
-        return { score, weight, gInfo };
+        // 85%+ = 4.00 Grade A
+        let neededForA = (weight < 100 && score < 85) ? ((85 - score) / (100 - weight)) * 100 : null;
+        return { score, weight, gInfo, neededForA };
     };
 
     const calculateSGPA = (subjects) => {
-        let semQP = 0, semCH = 0;
+        let qp = 0, ch = 0;
         (subjects || []).forEach(sub => {
             const stats = getSubjectStats(sub);
-            const ch = parseFloat(sub.ch) || 0;
-            semQP += (stats.gInfo.p * ch);
-            semCH += ch;
+            qp += (stats.gInfo.p * (parseFloat(sub.ch) || 0));
+            ch += (parseFloat(sub.ch) || 0);
         });
-        return (semCH > 0 ? (semQP / semCH) : 0).toFixed(2);
+        return (ch > 0 ? (qp / ch) : 0).toFixed(2);
     };
 
-    let totalQP = 0, totalCH = 0;
-    (semesters || []).forEach(s => (s.subjects || []).forEach(sub => {
-        const stats = getSubjectStats(sub);
-        const ch = parseFloat(sub.ch) || 0;
-        totalQP += (stats.gInfo.p * ch); 
-        totalCH += ch;
-    }));
-    const cgpa = (totalCH > 0 ? (totalQP / totalCH) : 0).toFixed(2);
+    const totalCH = semesters.reduce((acc, s) => acc + s.subjects.reduce((a, b) => a + (parseFloat(b.ch) || 0), 0), 0);
+    const gpaTrend = semesters.map(s => parseFloat(calculateSGPA(s.subjects)));
+    const cgpa = (semesters.reduce((acc, s) => acc + s.subjects.reduce((a, sub) => a + (getSubjectStats(sub).gInfo.p * (parseFloat(sub.ch) || 0)), 0), 0) / (totalCH || 1)).toFixed(2);
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] pb-10 font-sans text-slate-900 overflow-x-hidden">
-            {/* 1. Header: Responsive Flex */}
-            <header className="bg-linear-to-br from-[#0f172a] via-superior-blue to-[#2563eb] pt-10 pb-24 md:pb-32 px-4 md:px-6 rounded-b-[2.5rem] md:rounded-b-[4rem] shadow-2xl text-white">
-                <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-                    <div className="flex items-center gap-4 md:gap-6">
-                        <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}&background=random`} 
-                             className="w-14 h-14 md:w-20 md:h-20 rounded-full border-4 border-white/20 shadow-xl" alt="Profile" />
-                        <div>
-                            <h2 className="text-xl md:text-3xl font-black tracking-tight">{user?.displayName || 'Student'}</h2>
-                            <p className="text-blue-100/70 text-xs md:text-sm font-medium italic truncate max-w-50 md:max-w-none">{user?.email}</p>
-                        </div>
+        <div className="min-h-screen bg-[#F1F5F9] pb-10 font-sans text-slate-900 overflow-x-hidden relative">
+            <AnimatePresence>
+                {isParsing && <LoadingOverlay message="Parsing Document..." />}
+                {showInstructions && <OnboardingModal onClose={() => { localStorage.setItem('hasSeenAcademicGuideV5', 'true'); setShowInstructions(false); }} />}
+                {showGradeTable && <GradeScaleModal onClose={() => setShowGradeTable(false)} />}
+            </AnimatePresence>
+
+            <header className="bg-linear-to-br from-[#0F172A] via-[#312E81] to-[#4338CA] pt-10 pb-32 px-4 md:px-6 rounded-b-[4rem] shadow-2xl text-white relative overflow-hidden">
+                {isSyncing && <SyncIndicator />}
+                <div className="absolute top-6 right-6 md:top-10 md:right-10 flex gap-3 z-50">
+                    <HeaderBtn icon="📊" onClick={() => setShowGradeTable(true)} />
+                    <HeaderBtn icon="⚙️" onClick={() => setShowSettings(!showSettings)} />
+                </div>
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10 relative z-10">
+                    <div className="flex flex-col md:flex-row items-center gap-6">
+                        <motion.img whileHover={{ scale: 1.05 }} src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}`} className="w-20 h-20 md:w-28 md:h-28 rounded-4xl border-4 border-white/10 shadow-2xl" alt="Profile" />
+                        <div><h2 className="text-3xl md:text-5xl font-black tracking-tight uppercase italic">{user?.displayName || 'Student'}</h2><p className="text-indigo-200/60 text-xs md:text-sm font-bold tracking-[0.2em] mt-2 uppercase">{user?.email}</p></div>
                     </div>
-                    
-                    <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} 
-                                className="bg-white/10 backdrop-blur-3xl border border-white/20 p-6 md:p-8 rounded-4xl md:rounded-[3rem] text-center min-w-45 md:min-w-60 shadow-inner">
-                        <span className="text-[9px] md:text-[11px] font-black tracking-[0.3em] uppercase opacity-60">OVERALL CGPA</span>
-                        <h1 className="text-5xl md:text-7xl font-black my-1 leading-none">{cgpa}</h1>
-                        <p className="text-[9px] md:text-[10px] font-bold opacity-50 uppercase tracking-widest mt-2">Total Credits: {totalCH}</p>
+                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/5 backdrop-blur-3xl border p-8 rounded-[3rem] text-center min-w-60 md:min-w-[320px] shadow-inner border-b-4 border-indigo-500/30">
+                        <span className="text-[10px] md:text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Cumulative GPA</span>
+                        <h1 className="text-7xl md:text-9xl font-black text-indigo-100 tracking-tighter">{cgpa}</h1>
+                        <p className="text-[11px] font-bold opacity-50 uppercase tracking-widest">Total Credits: {totalCH}</p>
                     </motion.div>
                 </div>
+                <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mt-32 blur-3xl"></div>
             </header>
 
-            <main className="max-w-5xl mx-auto -mt-12 md:-mt-20 px-4 md:px-6">
-                {/* 2. Responsive Action Bar */}
-                <div className="flex flex-col sm:flex-row justify-center gap-3 md:gap-4 mb-10 md:mb-16">
-                    <button onClick={() => document.getElementById('mainPdfIn').click()}
-                            className="w-full sm:w-auto bg-white text-blue-700 px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-2xl font-black shadow-lg hover:shadow-2xl transition-all flex items-center justify-center gap-2 border border-blue-100">
-                        📄 <span className="text-sm md:text-base">Import PDF</span>
-                    </button>
-                    <button onClick={() => onUpdate([...semesters, { id: Date.now(), name: 'New Semester', subjects: [] }])} 
-                            className="w-full sm:w-auto bg-blue-600 text-white px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-2xl font-black shadow-lg hover:bg-blue-700 transition-all text-sm md:text-base">
-                        + Add Semester
-                    </button>
-                    <input type="file" id="mainPdfIn" hidden onChange={(e) => {
-                        if (!e.target.files[0]) return;
-                        parseSuperiorTranscript(e.target.files[0]).then(data => onUpdate([...semesters, ...data]));
-                    }} accept=".pdf" />
+            <main className="max-w-6xl mx-auto -mt-16 md:-mt-20 px-4 md:px-6 relative z-10">
+                <AnimatePresence>
+                    {showSettings && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-indigo-950 text-white p-6 md:p-10 rounded-[3rem] mb-12 shadow-2xl border border-indigo-800 overflow-hidden">
+                            <h3 className="font-black uppercase tracking-[0.3em] text-xs text-indigo-400 mb-8">Component Editor</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+                                {assessmentTypes.map((type, tIdx) => (
+                                    <div key={tIdx} className="bg-indigo-900/50 p-2 pl-4 rounded-2xl flex items-center gap-2 border border-indigo-800">
+                                        <input className="bg-transparent border-none text-xs font-bold w-full text-white outline-none" value={type} onChange={(e) => updateType(tIdx, e.target.value)} />
+                                        <button onClick={() => setAssessmentTypes(assessmentTypes.filter(t => t !== type))} className="bg-indigo-800 text-red-400 p-2 rounded-xl">✕</button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex gap-4 max-w-md bg-[#020617] p-2 rounded-3xl border border-indigo-800"><input className="bg-transparent px-6 py-2 text-sm w-full outline-none text-white" placeholder="Add custom type..." value={newType} onChange={(e) => setNewType(e.target.value)} /><button onClick={addType} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase">Add</button></div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className="flex justify-center mb-10"><button onClick={() => setShowAnalytics(!showAnalytics)} className="bg-white/80 px-8 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg border border-slate-200 hover:bg-white transition-all">{showAnalytics ? 'Hide Analytics' : 'Performance Analytics 📈'}</button></div>
+                <AnimatePresence>{showAnalytics && <AnalyticsChart trend={gpaTrend} />}</AnimatePresence>
+
+                <div className="flex flex-col sm:flex-row justify-center gap-5 mb-20 px-4">
+                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => document.getElementById('mainPdfIn').click()} className="bg-white text-indigo-900 px-12 py-5 rounded-2xl font-black shadow-xl border border-slate-200 uppercase text-xs tracking-widest">📂 Import PDF</motion.button>
+                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className="bg-indigo-600 text-white px-12 py-5 rounded-2xl font-black shadow-xl uppercase text-xs tracking-widest">+ Add Manual Semester</motion.button>
+                    <input type="file" id="mainPdfIn" hidden onChange={handlePdfImport} accept=".pdf" />
                 </div>
 
-                <AnimatePresence>
-                    {(semesters || []).map((sem, sIdx) => {
+                <AnimatePresence mode="popLayout">
+                    {semesters.map((sem, sIdx) => {
                         const semSGPA = calculateSGPA(sem.subjects);
                         return (
-                            <motion.div layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} key={sem.id} className="mb-12 md:mb-20">
-                                {/* 3. Responsive Semester Header */}
-                                <div className="flex flex-wrap items-center gap-3 md:gap-6 mb-6 md:mb-8 px-2 md:px-6">
-                                    <div className="flex items-center gap-2 md:gap-4">
-                                        <span className="bg-blue-600 text-white w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center font-black text-[10px] md:text-xs shadow-lg shadow-blue-200">{sIdx + 1}</span>
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                                            <input className="bg-transparent border-none text-slate-800 font-black uppercase tracking-[0.2em] md:tracking-[0.3em] text-xs md:text-sm outline-none w-fit"
-                                                   value={sem.name} onChange={(e) => { const n = [...semesters]; n[sIdx].name = e.target.value; onUpdate(n); }} />
-                                            <span className="bg-blue-100 text-blue-700 px-2 md:px-3 py-1 rounded-full text-[8px] md:text-[10px] font-black uppercase tracking-widest w-fit">SGPA: {semSGPA}</span>
-                                        </div>
+                            <motion.div layout key={sem.id} className="mb-12">
+                                <div className={`flex items-center gap-4 p-5 md:p-7 rounded-[2.5rem] shadow-xl border sticky top-4 z-20 transition-all ${collapsed.sems.includes(sem.id) ? 'bg-[#0F172A] text-white' : 'bg-white'}`}>
+                                    <div className="flex items-center grow cursor-pointer" onClick={() => toggleCollapse('sems', sem.id)}>
+                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black bg-indigo-600 text-white shadow-lg mr-4">{collapsed.sems.includes(sem.id) ? '▶' : '▼'}</div>
+                                        <span className="font-black uppercase tracking-widest text-lg">{sem.name}</span>
+                                        <span className="ml-6 bg-indigo-50 text-indigo-700 px-5 py-2 rounded-full text-xs font-black">SGPA: {semSGPA}</span>
                                     </div>
-                                    <div className="hidden sm:block h-2 bg-slate-200 grow"></div>
-                                    <button onClick={() => onUpdate(semesters.filter(s => s.id !== sem.id))} className="text-red-300 hover:text-red-500 font-bold text-[8px] md:text-[10px] uppercase tracking-widest ml-auto sm:ml-0">Remove</button>
+                                    <button onClick={() => onUpdate(semesters.filter(s => s.id !== sem.id))} className="text-red-400 p-2 mr-2 transition-all">✕</button>
                                 </div>
 
-                                {/* 4. Responsive Subject Cards */}
-                                {(sem.subjects || []).map((sub, subIdx) => {
-                                    const stats = getSubjectStats(sub);
-                                    return (
-                                        <div key={sub.id} className="bg-white border-2 border-slate-200 rounded-3xl md:rounded-3xl p-5 md:p-8 mb-4 md:mb-6 shadow-sm relative group hover:border-black transition-all hover:shadow-xl">
-                                            <button className="absolute -top-2 -right-2 md:-top-3 md:-right-3 bg-red-500 text-white w-6 h-6 md:w-8 md:h-8 rounded-lg md:rounded-xl shadow-lg flex items-center justify-center font-black z-10 sm:opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }}>✕</button>
-
-                                            <div className="flex flex-col xl:flex-row gap-6">
-                                                <div className="grow space-y-4 md:space-y-6">
-                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3 md:gap-4">
-                                                        <div className="md:col-span-3">
-                                                            <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1 block">Course</label>
-                                                            <input className="w-full bg-slate-50 border-2 border-slate-100 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 focus:border-black outline-none font-bold text-sm md:text-base"
-                                                                   value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} />
-                                                        </div>
-                                                        <div className="w-20 md:w-auto">
-                                                            <label className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-1 block md:text-center">CH</label>
-                                                            <input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-lg md:rounded-xl px-3 md:px-4 py-2 md:py-3 outline-none font-black text-sm md:text-base md:text-center focus:border-black"
-                                                                   value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} />
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="inline-flex bg-slate-50 p-1 rounded-lg md:rounded-xl border border-slate-200">
-                                                        <button className={`px-4 md:px-6 py-1.5 md:py-2 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-black tracking-widest transition-all ${sub.mode !== 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                                                                onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE</button>
-                                                        <button className={`px-4 md:px-6 py-1.5 md:py-2 rounded-md md:rounded-lg text-[8px] md:text-[9px] font-black tracking-widest transition-all ${sub.mode === 'assessment' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}
-                                                                onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ADVANCED</button>
-                                                    </div>
-                                                </div>
-
-                                                {/* 5. Responsive Grade Preview */}
-                                                <div className="xl:w-48 bg-slate-50 border-2 border-slate-100 rounded-3xl md:rounded-[2.5rem] p-5 md:p-6 flex flex-row xl:flex-col items-center justify-between xl:justify-center text-center shadow-inner group-hover:bg-white transition-colors">
-                                                    <div className="text-left xl:text-center">
-                                                        <span className="text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Score</span>
-                                                        <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">{(stats.score || 0).toFixed(0)}%</div>
-                                                    </div>
-                                                    <div className="mt-0 xl:mt-4 px-3 md:px-4 py-1.5 bg-blue-600 text-white rounded-lg md:rounded-xl font-black text-xs md:text-base shadow-lg shadow-blue-200">
-                                                        {stats.gInfo?.g} ({(stats.gInfo?.p || 0.0).toFixed(1)})
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Dynamic Content: Simple/Advanced Modes */}
-                                            <div className="mt-4 md:mt-6">
-                                                {sub.mode !== 'assessment' ? (
-                                                    <div className="p-4 md:p-6 bg-blue-50/30 rounded-3xl md:rounded-[2.5rem] border-2 border-dashed border-blue-100 text-center">
-                                                        <label className="text-[8px] md:text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2 md:mb-3 block">Obtained Marks</label>
-                                                        <input type="number" className="w-full max-w-37.5 md:max-w-xs bg-white border-2 border-blue-100 rounded-xl md:rounded-2xl px-4 md:px-6 py-3 md:py-4 font-black text-2xl md:text-3xl text-center text-blue-700 outline-none"
-                                                               value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-3 md:space-y-4">
-                                                        {sub.assessments?.map((asm, aIdx) => (
-                                                            <div key={asm.id} className="grid grid-cols-2 md:grid-cols-12 gap-2 md:gap-3 p-3 md:p-4 bg-slate-50/50 rounded-xl md:rounded-2xl border border-slate-100 items-center">
-                                                                <div className="col-span-2 md:col-span-4">
-                                                                    <select className="w-full bg-white border border-slate-200 rounded-lg md:rounded-xl p-2 md:p-3 font-bold text-[10px] md:text-xs outline-none"
-                                                                            value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
-                                                                        <option>Quiz</option>
-                                                                        <option>Assignment</option>
-                                                                        <option>Mid Exam</option>
-                                                                        <option>Final Exam</option>
-                                                                        <option>Project</option>
-                                                                        <option>Viva</option>
-                                                                        <option>Class participation</option>
-                                                                        <option>Others</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div className="md:col-span-2 flex flex-col items-center">
-                                                                    <span className="md:hidden text-[7px] font-bold text-slate-400 uppercase">Weight %</span>
-                                                                    <input type="number" className="w-full bg-white border border-slate-200 rounded-lg md:rounded-xl p-2 md:p-3 text-[10px] md:text-xs font-bold text-center"
-                                                                           value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} />
-                                                                </div>
-                                                                <div className="md:col-span-2 flex flex-col items-center">
-                                                                    <span className="md:hidden text-[7px] font-bold text-slate-400 uppercase">Total</span>
-                                                                    <input type="number" className="w-full bg-white border border-slate-200 rounded-lg md:rounded-xl p-2 md:p-3 text-[10px] md:text-xs font-bold text-center"
-                                                                           value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} />
-                                                                </div>
-                                                                <div className="md:col-span-2 flex flex-col items-center">
-                                                                    <span className="md:hidden text-[7px] font-bold text-slate-400 uppercase">Obtained</span>
-                                                                    <input type="number" className="w-full bg-blue-50 border border-blue-200 rounded-lg md:rounded-xl p-2 md:p-3 text-[10px] md:text-xs font-black text-center text-blue-700"
-                                                                           value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} />
-                                                                </div>
-                                                                <div className="col-span-2 md:col-span-2 text-right">
-                                                                    <button className="text-red-400 font-black text-[8px] md:text-[9px] uppercase tracking-widest w-full md:w-auto"
-                                                                            onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>Remove</button>
-                                                                </div>
+                                {!collapsed.sems.includes(sem.id) && (
+                                    <div className="mt-8 space-y-8 px-2 md:px-8">
+                                        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+                                            {sem.subjects.map((sub, subIdx) => {
+                                                const stats = getSubjectStats(sub);
+                                                const isSubCollapsed = collapsed.subs.includes(sub.id);
+                                                return (
+                                                    <motion.div layout variants={itemVariants} key={sub.id} className={`bg-white border-2 rounded-[3rem] p-6 md:p-10 shadow-sm transition-all relative ${isSubCollapsed ? 'border-slate-100 opacity-90 scale-[0.99]' : 'border-white hover:border-indigo-400'}`}>
+                                                        <div className="flex justify-between items-center">
+                                                            <div className="flex items-center gap-6 cursor-pointer grow" onClick={() => toggleCollapse('subs', sub.id)}>
+                                                                 <motion.span animate={{ rotate: isSubCollapsed ? 0 : 45 }} className="text-indigo-600 font-black text-4xl">⊕</motion.span>
+                                                                 <div><h3 className={`font-black uppercase text-sm md:text-xl tracking-tight transition-colors italic ${isSubCollapsed ? 'text-slate-400' : 'text-slate-900'}`}>{sub.title || 'Course Title...'}</h3>{isSubCollapsed && <SummaryBadge stats={stats} />}</div>
                                                             </div>
-                                                        ))}
-                                                        <button className="w-full py-3 md:py-4 border-2 border-dashed border-slate-200 rounded-xl md:rounded-4xl text-slate-400 text-[8px] md:text-[10px] font-black tracking-[0.2em] hover:bg-slate-50"
-                                                                onClick={() => {
-                                                                    const n = [...semesters];
-                                                                    if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
-                                                                    n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type:'Quiz', weight:10, total:40, obt:0});
-                                                                    onUpdate(n);
-                                                                }}>+ ADD COMPONENT</button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                <button onClick={() => {
-                                    const n = [...semesters];
-                                    n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []});
-                                    onUpdate(n);
-                                }} className="w-full bg-white text-slate-400 border-2 border-dashed border-slate-200 py-4 md:py-5 rounded-3xl md:rounded-[2.5rem] font-black text-[8px] md:text-[9px] tracking-[0.3em] hover:border-black hover:text-black transition-all shadow-sm">+ ADD COURSE</button>
+                                                            {!isSubCollapsed && stats.neededForA !== null && stats.neededForA <= 100 && (
+                                                                <div className="hidden lg:flex flex-col items-end mr-6 bg-amber-50 px-4 py-2 rounded-2xl border border-amber-100 animate-pulse"><span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Target A</span><span className="text-sm font-black text-amber-700">Need {stats.neededForA.toFixed(0)}% more</span></div>
+                                                            )}
+                                                            <div className="flex gap-3">
+                                                                <label className="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-2 shadow-sm">
+                                                                    📷 Scan Image
+                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageScan(e, sIdx, subIdx)} />
+                                                                </label>
+                                                                <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }} className="bg-slate-50 text-slate-300 w-12 h-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-inner">✕</button>
+                                                            </div>
+                                                        </div>
+
+                                                        {!isSubCollapsed && (
+                                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-10 pt-10 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-4 gap-12 animate-in fade-in slide-in-from-top-4 duration-500">
+                                                                <div className="lg:col-span-3 space-y-10">
+                                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                                        <div className="md:col-span-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Name</label><input className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 outline-none font-bold text-lg focus:border-indigo-600 transition-all" value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} /></div>
+                                                                        <div className="md:col-span-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block text-center">CH</label><input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 text-center font-black text-2xl outline-none focus:border-indigo-600 transition-all" value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} /></div>
+                                                                    </div>
+                                                                    <div className="inline-flex bg-slate-100 p-2 rounded-full border border-slate-200 shadow-inner">
+                                                                        <button className={`px-12 py-3 rounded-full text-[10px] font-black ${sub.mode !== 'assessment' ? 'bg-white shadow-xl text-indigo-600' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE MODE</button>
+                                                                        <button className={`px-12 py-3 rounded-full text-[10px] font-black ${sub.mode === 'assessment' ? 'bg-white shadow-xl text-indigo-600' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ADVANCED MODE</button>
+                                                                    </div>
+                                                                    <div className="mt-8">
+                                                                        {sub.mode === 'assessment' ? (
+                                                                            <div className="space-y-4">
+                                                                                {sub.assessments?.map((asm, aIdx) => (
+                                                                                    <div key={asm.id} className="grid grid-cols-2 md:grid-cols-12 gap-4 p-5 bg-slate-50 rounded-3xl items-center border border-slate-100 hover:bg-white transition-all shadow-sm">
+                                                                                        <div className="col-span-2 md:col-span-4"><select className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-xs focus:border-indigo-600 shadow-inner outline-none appearance-none" value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>{assessmentTypes.map((t, i) => <option key={i} value={t}>{t}</option>)}</select></div>
+                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl border border-slate-200 shadow-inner outline-none focus:border-indigo-500" value={asm.weight} placeholder="W%" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
+                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl border border-slate-200 shadow-inner outline-none focus:border-indigo-500" value={asm.total} placeholder="Max" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
+                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100" value={asm.obt} placeholder="Score" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
+                                                                                        <button className="text-red-400 font-bold hover:text-red-600 text-[10px] uppercase flex justify-end" onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>✕</button>
+                                                                                    </div>
+                                                                                ))}
+                                                                                <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-[2.5rem] text-slate-400 text-[10px] font-black hover:border-indigo-500 hover:text-indigo-600 transition-all uppercase tracking-widest" onClick={() => { const n = [...semesters]; if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type: assessmentTypes[0], weight:10, total:100, obt:0}); onUpdate(n); }}>+ Link Performance Component</button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="p-16 bg-indigo-50/40 rounded-[4rem] border-2 border-dashed border-indigo-200 text-center shadow-inner"><label className="text-[11px] font-black text-indigo-400 uppercase tracking-[0.5em] mb-8 block italic">Input Total Percentage (0-100)</label><input type="number" className="w-full max-w-xs bg-white border-2 border-indigo-200 rounded-[2.5rem] px-8 py-10 font-black text-7xl text-center text-indigo-700 focus:ring-8 focus:ring-indigo-100 transition-all shadow-2xl" value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} /></div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <ResultBox stats={stats} />
+                                                            </motion.div>
+                                                        )}
+                                                    </motion.div>
+                                                );
+                                            })}
+                                        </motion.div>
+                                        <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []}); onUpdate(n); }} className="w-full py-10 border-2 border-dashed border-slate-200 rounded-[4rem] text-slate-300 font-black hover:text-indigo-600 uppercase text-xs tracking-widest transition-all shadow-md">+ Add Subject to {sem.name}</button>
+                                    </div>
+                                )}
                             </motion.div>
                         );
                     })}
                 </AnimatePresence>
 
-                <div className="flex flex-col items-center mt-16 md:mt-32 space-y-6 md:space-y-8">
-                    <button onClick={() => window.print()} 
-                            className="bg-[#0f172a] text-white px-8 md:px-16 py-5 md:py-7 rounded-4xl md:rounded-[3.5rem] font-black shadow-2xl hover:scale-105 active:scale-95 transition-all w-full max-w-xl text-sm md:text-xl tracking-[0.2em]">
-                        🖨️ PRINT TRANSCRIPT
-                    </button>
-                    <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase tracking-[0.3em] text-[8px] md:text-[10px] pb-10">End Session</button>
+                <div className="flex flex-col items-center mt-32 space-y-12 pb-20">
+                    <button onClick={() => window.print()} className="bg-[#0F172A] text-white px-20 py-8 rounded-[4rem] font-black shadow-2xl w-full max-w-3xl text-xl uppercase hover:scale-105 active:scale-95 shadow-indigo-900/40 tracking-widest italic">🖨️ Export PDF Transcript</button>
+                    <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase text-[10px] tracking-widest transition-colors">Terminate session</button>
                 </div>
             </main>
         </div>
     );
+};
+
+// --- HELPER SUB-COMPONENTS ---
+const HeaderBtn = ({ icon, onClick }) => (
+    <motion.button whileHover={{ scale: 1.1 }} onClick={onClick} className="bg-white/10 hover:bg-white/20 p-3 rounded-2xl backdrop-blur-md border border-white/10 shadow-xl">{icon}</motion.button>
+);
+
+const SyncIndicator = () => (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-indigo-500/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border border-white/10 animate-pulse z-50">Syncing to cloud...</div>
+);
+
+const LoadingOverlay = ({ message }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-400 bg-indigo-950/70 backdrop-blur-md flex flex-col items-center justify-center text-white">
+        <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+        <h3 className="font-black uppercase tracking-widest text-sm italic">{message}</h3>
+    </motion.div>
+);
+
+const SummaryBadge = ({ stats }) => (
+    <div className="flex gap-2 mt-2">
+        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">Score: {stats.score.toFixed(0)}%</span>
+        <span className="text-[10px] font-black text-white bg-indigo-600 px-3 py-1 rounded-lg uppercase">{stats.gInfo?.g} ({stats.gInfo?.p.toFixed(2)})</span>
+    </div>
+);
+
+const ResultBox = ({ stats }) => (
+    <div className="lg:col-span-1 bg-[#0F172A] text-white rounded-[4rem] p-12 flex flex-col items-center justify-center text-center shadow-2xl h-full border-t-12 border-indigo-600 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
+        <span className="text-[11px] font-black opacity-30 uppercase tracking-[0.5em] mb-4 block italic">Yield</span>
+        <div className="text-8xl font-black mb-8 tracking-tighter text-indigo-100">{(stats.score || 0).toFixed(0)}<span className="text-3xl opacity-40">%</span></div>
+        <div className="bg-indigo-600 w-full py-6 rounded-4xl font-black text-5xl shadow-xl shadow-indigo-900/50">{stats.gInfo?.g}</div>
+        <p className="mt-8 text-xs font-bold text-indigo-300 uppercase tracking-widest opacity-60">Grade Points: {(stats.gInfo?.p || 0.0).toFixed(2)}</p>
+    </div>
+);
+
+const AnalyticsChart = ({ trend }) => (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white p-10 rounded-[4rem] mb-12 shadow-2xl border border-slate-100 text-center overflow-x-auto custom-scrollbar">
+        <h3 className="font-black uppercase text-xs text-slate-400 mb-12 italic tracking-[0.4em]">Performance Analytics (SGPA Trend)</h3>
+        <div className="h-64 w-full min-w-125 relative flex items-end justify-between px-16 border-b-2 border-slate-100 pb-2">
+            <svg className="absolute inset-0 w-full h-full px-16 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polyline fill="none" stroke="#4F46E5" strokeWidth="3" points={trend.length > 1 ? trend.map((val, i) => `${(i / (trend.length - 1)) * 100},${100 - (val / 4) * 100}`).join(' ') : "0,50 100,50"} />
+            </svg>
+            {trend.map((val, i) => (
+                <div key={i} className="flex flex-col items-center z-10 relative group">
+                    <div className="bg-indigo-600 w-5 h-5 rounded-full mb-3 shadow-xl ring-4 ring-indigo-50"></div>
+                    <span className="text-base font-black text-slate-900">{val}</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-2">Sem {i+1}</span>
+                </div>
+            ))}
+        </div>
+    </motion.div>
+);
+
+const GradeScaleModal = ({ onClose }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden border border-slate-700">
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center"><h3 className="font-black uppercase tracking-widest text-xs italic">Superior Standard</h3><button onClick={onClose} className="text-slate-400 hover:text-white transition-all">✕</button></div>
+            <div className="p-8 space-y-2">{[ ["85-100", "A", "4.00"], ["80-84", "A-", "3.66"], ["75-79", "B+", "3.33"], ["71-74", "B", "3.00"], ["68-70", "B-", "2.66"], ["64-67", "C+", "2.33"], ["61-63", "C", "2.00"], ["58-60", "C-", "1.66"], ["Below 50", "F", "0.00"] ].map(([r, g, p], i) => (<div key={i} className="flex justify-between py-2 border-b border-slate-50 last:border-0 items-center"><span className="text-[10px] font-black text-slate-400 uppercase">{r}</span><span className={`text-sm font-black ${g === 'A' ? 'text-indigo-600' : 'text-slate-900'}`}>{g}</span><span className="font-mono font-bold text-slate-400">{p}</span></div>))}</div>
+        </motion.div>
+    </motion.div>
+);
+
+const OnboardingModal = ({ onClose }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md">
+        <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-white w-full max-w-2xl rounded-[4rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10">
+            <div className="bg-indigo-600 p-10 text-white"><h2 className="text-4xl font-black uppercase italic tracking-tighter">A to Z Guide</h2><p className="text-indigo-100 text-sm opacity-80 uppercase tracking-[0.2em] mt-2">Professional Academic Ecosystem</p></div>
+            <div className="p-10 md:p-14 space-y-12 overflow-y-auto grow custom-scrollbar">
+                <GuideStep icon="☁️" title="Cloud Persistence" desc="Data is auto-synced to Firestore. Refresh or switch devices without losing a single mark." />
+                <GuideStep icon="📉" title="Grade Predictor" desc="Amber alerts show exactly what score you need in finals to secure a 4.00 Grade A result." />
+                <GuideStep icon="📷" title="OCR Smart Scan" desc="Snap your marks table and upload to auto-fill assessments. Zero manual typing required." />
+                <GuideStep icon="📊" title="GPA Trendline" desc="Interactive visual analytics track your performance across all semesters dynamically." />
+            </div>
+            <div className="p-10 border-t border-slate-100 flex justify-center bg-slate-50"><button onClick={onClose} className="bg-indigo-600 text-white px-16 py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl hover:bg-indigo-700 transition-all active:scale-95">Enter Dashboard</button></div>
+        </motion.div>
+    </motion.div>
+);
+
+const GuideStep = ({ icon, title, desc }) => (
+    <div className="flex gap-8 items-start group">
+        <div className="bg-indigo-50 text-indigo-600 w-20 h-20 rounded-4xl flex items-center justify-center text-4xl shrink-0 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xl">{icon}</div>
+        <div className="pt-2"><h4 className="font-black text-slate-800 uppercase text-lg tracking-widest mb-1 italic">{title}</h4><p className="text-slate-500 text-sm leading-relaxed font-medium">{desc}</p></div>
+    </div>
+);
+
+// Helper function for Scan integration inside Dashboard
+const scanImageForMarks = async (file) => {
+    const { data: { text } } = await Tesseract.recognize(file, 'eng');
+    const lines = text.split('\n');
+    const results = [];
+    lines.forEach(line => {
+        const match = line.match(/([A-Za-z\s-]+)\s+(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)/);
+        if (match && !line.toLowerCase().includes('weightage')) {
+            results.push({ total: match[3], obtained: match[4], type: match[1].trim(), weight: match[2] });
+        }
+    });
+    return results;
 };
 
 export default Dashboard;
