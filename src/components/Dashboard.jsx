@@ -1,13 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Tesseract from 'tesseract.js'; // Added for OCR
+import Tesseract from 'tesseract.js'; 
 import { auth, db } from '../services/firebase';
 import { parseSuperiorTranscript, calculateGrade } from '../services/pdfParser';
 
-// Animation Variants
-const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
-const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 20 } } };
-const modalVariants = { hidden: { opacity: 0, scale: 0.9, y: 40 }, visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 25 } }, exit: { opacity: 0, scale: 0.9, y: 20 } };
+// --- Theme Config ---
+const themes = {
+    indigo: {
+        id: 'indigo',
+        name: 'Ocean Indigo',
+        primary: 'bg-indigo-600',
+        text: 'text-indigo-600',
+        border: 'border-indigo-100',
+        header: 'from-[#0F172A] via-[#1E1B4B] to-[#312E81]',
+        accent: 'bg-indigo-50',
+        bg: 'bg-[#F1F5F9]'
+    },
+    dark: { // Midnight Emerald (Image 2 Style)
+        id: 'dark',
+        name: 'Midnight Emerald',
+        primary: 'bg-emerald-500',
+        text: 'text-emerald-400',
+        border: 'border-slate-800',
+        header: 'from-[#020617] via-[#020617] to-[#0F172A]',
+        accent: 'bg-slate-900',
+        bg: 'bg-[#020617]'
+    },
+    sunset: {
+        id: 'sunset',
+        name: 'Rose Sunset',
+        primary: 'bg-rose-500',
+        text: 'text-rose-500',
+        border: 'border-rose-100',
+        header: 'from-[#4c0519] via-[#881337] to-[#fb7185]',
+        accent: 'bg-rose-50',
+        bg: 'bg-[#fff1f2]'
+    }
+};
 
 const Dashboard = ({ user, semesters, onUpdate }) => {
     const [collapsed, setCollapsed] = useState({ sems: [], subs: [] });
@@ -16,20 +45,26 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     const [showGradeTable, setShowGradeTable] = useState(false);
     const [showAnalytics, setShowAnalytics] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
-    const [isParsing, setIsParsing] = useState(false); // Used for both PDF and Image
+    const [isParsing, setIsParsing] = useState(false);
+    
+    const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme') || 'indigo');
+    const theme = themes[activeTheme];
 
-    // --- 1. FIREBASE LOAD/SAVE LOGIC ---
+    // --- Firebase Sync ---
     useEffect(() => {
         const fetchUserData = async () => {
             if (user?.uid) {
                 try {
                     const doc = await db.collection('users').doc(user.uid).get();
-                    if (doc.exists && doc.data().semesters) onUpdate(doc.data().semesters);
-                } catch (err) { console.error("Firebase Load Error:", err); }
+                    if (doc.exists) {
+                        const data = doc.data();
+                        if (data.semesters) onUpdate(data.semesters);
+                        if (data.activeTheme) setActiveTheme(data.activeTheme);
+                    }
+                } catch (err) { console.error("Cloud Load Error:", err); }
             }
         };
-        const hasSeenGuide = localStorage.getItem('hasSeenAcademicGuideV5');
-        if (!hasSeenGuide) setTimeout(() => setShowInstructions(true), 500);
+        if (!localStorage.getItem('hasSeenGuideV6')) setTimeout(() => setShowInstructions(true), 500);
         fetchUserData();
     }, [user?.uid]);
 
@@ -38,99 +73,54 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
             if (user?.uid && semesters.length > 0) {
                 setIsSyncing(true);
                 try {
-                    await db.collection('users').doc(user.uid).set({ semesters, lastUpdated: new Date().toISOString() }, { merge: true });
+                    await db.collection('users').doc(user.uid).set({ 
+                        semesters, activeTheme, lastUpdated: new Date().toISOString() 
+                    }, { merge: true });
                     setTimeout(() => setIsSyncing(false), 1500);
                 } catch (err) { setIsSyncing(false); }
             }
         };
         const timer = setTimeout(() => saveToCloud(), 3000);
         return () => clearTimeout(timer);
-    }, [semesters, user?.uid]);
+    }, [semesters, activeTheme, user?.uid]);
 
-    // Assessment Logic
-    const [assessmentTypes, setAssessmentTypes] = useState(['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Class participation', 'Others']);
+    const [assessmentTypes, setAssessmentTypes] = useState(['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Others']);
     const [newType, setNewType] = useState("");
 
-    const addType = () => {
-        if (newType.trim() && !assessmentTypes.includes(newType.trim())) {
-            setAssessmentTypes([...assessmentTypes, newType.trim()]);
-            setNewType("");
-        }
-    };
-
-    const updateType = (index, newValue) => {
-        const updated = [...assessmentTypes];
-        updated[index] = newValue;
-        setAssessmentTypes(updated);
-    };
-
-    const toggleCollapse = (type, id) => {
-        setCollapsed(prev => ({
-            ...prev,
-            [type]: prev[type].includes(id) ? prev[type].filter(item => item !== id) : [...prev[type], id]
-        }));
-    };
-
-    // --- 2. SMART OCR SCANNER (For Assessment Images) ---
+    // --- OCR Logic (Specifically for table image) ---
     const handleImageScan = async (e, sIdx, subIdx) => {
         const file = e.target.files[0];
         if (!file) return;
-
         setIsParsing(true);
         try {
             const { data: { text } } = await Tesseract.recognize(file, 'eng');
-            console.log("OCR Extracted Text:", text); // Debugging ke liye
-
             const lines = text.split('\n');
             const newAssessments = [];
-
-            // Pattern: [Any Text] [Numbers for Weight] [Numbers for Max] [Numbers for Obt]
-            // Yeh Regex Quiz 1, Quiz 2 wagera ko bhi support karega
+            // Regex to find: Assessment Name | Weight | Max | Obtained
             const rowRegex = /(.+?)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)$/;
 
             lines.forEach(line => {
-                // Garbage characters aur lines ko saaf karna
                 const cleanLine = line.replace(/[|_]/g, ' ').replace(/\s+/g, ' ').trim();
                 const match = cleanLine.match(rowRegex);
-                
                 if (match) {
                     const name = match[1].trim();
                     const weight = parseFloat(match[2].replace(',', '.'));
                     const max = parseFloat(match[3].replace(',', '.'));
                     const obt = parseFloat(match[4].replace(',', '.'));
-
-                    // Header labels ko filter karna taake ghalti se data mein na aayein
-                    const isHeader = /Assessment|Weightage|Max|Obtained|Total|Mark/i.test(name);
-                    
-                    if (!isHeader && !isNaN(weight) && !isNaN(max) && !isNaN(obt)) {
-                        newAssessments.push({
-                            id: Date.now() + Math.random(),
-                            type: name,
-                            weight: weight,
-                            total: max,
-                            obt: obt
-                        });
+                    if (!/Assessment|Weightage|Max|Obt/i.test(name) && !isNaN(weight)) {
+                        newAssessments.push({ id: Date.now() + Math.random(), type: name, weight, total: max, obt });
                     }
                 }
             });
-
             if (newAssessments.length > 0) {
                 const n = [...semesters];
                 n[sIdx].subjects[subIdx].mode = 'assessment';
                 n[sIdx].subjects[subIdx].assessments = [...(n[sIdx].subjects[subIdx].assessments || []), ...newAssessments];
                 onUpdate(n);
-            } else {
-                alert("Could not detect marks table. Please use a clear crop of the table area.");
-            }
-        } catch (err) {
-            alert("Scanner error. Please try again.");
-        } finally {
-            setIsParsing(false);
-            e.target.value = null; 
-        }
+            } else { alert("Could not detect table rows. Ensure image is clear."); }
+        } finally { setIsParsing(false); e.target.value = null; }
     };
 
-    // --- 3. PDF IMPORT HANDLER ---
     const handlePdfImport = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -138,24 +128,21 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
         try {
             const data = await parseSuperiorTranscript(file);
             onUpdate([...semesters, ...data]);
-        } catch (err) { alert("PDF format incorrect."); }
+        } catch (err) { alert("PDF Error."); }
         finally { setIsParsing(false); e.target.value = null; }
     };
 
-    // --- Math Engine & Predictor ---
     const getSubjectStats = (sub) => {
         let score = 0, weight = 0;
         if (sub?.mode === 'assessment' && sub?.assessments?.length > 0) {
             sub.assessments.forEach(a => {
                 const w = parseFloat(a.weight) || 0;
-                const tot = parseFloat(a.total) || 1;
                 weight += w;
-                score += ((parseFloat(a.obt) || 0) / tot) * w;
+                score += ((parseFloat(a.obt) || 0) / (parseFloat(a.total) || 1)) * w;
             });
         } else { score = parseFloat(sub?.simpleObt) || 0; weight = 100; }
-        
         const gInfo = calculateGrade(score) || { g: 'F', p: 0.0 };
-        // 85%+ = 4.00 Grade A
+        // Strictly following 85% = 4.00 rule
         let neededForA = (weight < 100 && score < 85) ? ((85 - score) / (100 - weight)) * 100 : null;
         return { score, weight, gInfo, neededForA };
     };
@@ -171,251 +158,279 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     };
 
     const totalCH = semesters.reduce((acc, s) => acc + s.subjects.reduce((a, b) => a + (parseFloat(b.ch) || 0), 0), 0);
-    const gpaTrend = semesters.map(s => parseFloat(calculateSGPA(s.subjects)));
     const cgpa = (semesters.reduce((acc, s) => acc + s.subjects.reduce((a, sub) => a + (getSubjectStats(sub).gInfo.p * (parseFloat(sub.ch) || 0)), 0), 0) / (totalCH || 1)).toFixed(2);
 
     return (
-        <div className="min-h-screen bg-[#F1F5F9] pb-10 font-sans text-slate-900 overflow-x-hidden relative">
+        <div className={`min-h-screen ${theme.bg} pb-10 transition-all duration-700 overflow-x-hidden relative ${activeTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
             <AnimatePresence>
-                {isParsing && <LoadingOverlay message="Parsing Document..." />}
-                {showInstructions && <OnboardingModal onClose={() => { localStorage.setItem('hasSeenAcademicGuideV5', 'true'); setShowInstructions(false); }} />}
-                {showGradeTable && <GradeScaleModal onClose={() => setShowGradeTable(false)} />}
+                {isParsing && <LoadingOverlay message="AI Processing Data..." theme={theme} />}
+                {showInstructions && <OnboardingModal theme={theme} onClose={() => { localStorage.setItem('hasSeenGuideV6', 'true'); setShowInstructions(false); }} />}
+                {showGradeTable && <GradeScaleModal theme={theme} onClose={() => setShowGradeTable(false)} />}
             </AnimatePresence>
 
-            <header className="bg-linear-to-br from-[#0F172A] via-[#312E81] to-[#4338CA] pt-10 pb-32 px-4 md:px-6 rounded-b-[4rem] shadow-2xl text-white relative overflow-hidden">
-                {isSyncing && <SyncIndicator />}
-                <div className="absolute top-6 right-6 md:top-10 md:right-10 flex gap-3 z-50">
+            {/* --- PREMIUM HEADER --- */}
+            <header className={`bg-linear-to-br ${theme.header} pt-12 pb-28 md:pb-36 px-4 md:px-12 rounded-b-[4rem] shadow-2xl relative border-b border-white/5`}>
+                {isSyncing && <SyncIndicator theme={theme} />}
+                <div className="absolute top-8 right-6 md:right-12 flex gap-4 z-50">
                     <HeaderBtn icon="📊" onClick={() => setShowGradeTable(true)} />
                     <HeaderBtn icon="⚙️" onClick={() => setShowSettings(!showSettings)} />
                 </div>
-                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10 relative z-10">
-                    <div className="flex flex-col md:flex-row items-center gap-6">
-                        <motion.img whileHover={{ scale: 1.05 }} src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}`} className="w-20 h-20 md:w-28 md:h-28 rounded-4xl border-4 border-white/10 shadow-2xl" alt="Profile" />
-                        <div><h2 className="text-3xl md:text-5xl font-black tracking-tight uppercase italic">{user?.displayName || 'Student'}</h2><p className="text-indigo-200/60 text-xs md:text-sm font-bold tracking-[0.2em] mt-2 uppercase">{user?.email}</p></div>
+                
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
+                    <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left group">
+                        <motion.img whileHover={{ scale: 1.05 }} src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}`} className="w-24 h-24 md:w-36 md:h-36 rounded-[2.5rem] border-4 border-white/10 shadow-2xl" alt="P" />
+                        <div>
+                            <h2 className="text-3xl md:text-7xl font-black uppercase italic tracking-tighter text-white drop-shadow-lg">{user?.displayName || 'Abdullah Islam'}</h2>
+                            {/* Gmail lowercase fix applied below */}
+                            <p className="text-white/40 text-[10px] md:text-sm font-bold tracking-[0.4em] uppercase mt-2 italic">{user?.email?.toLowerCase()}</p>
+                        </div>
                     </div>
-                    <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white/5 backdrop-blur-3xl border p-8 rounded-[3rem] text-center min-w-60 md:min-w-[320px] shadow-inner border-b-4 border-indigo-500/30">
-                        <span className="text-[10px] md:text-[12px] font-black tracking-[0.4em] uppercase opacity-40">Cumulative GPA</span>
-                        <h1 className="text-7xl md:text-9xl font-black text-indigo-100 tracking-tighter">{cgpa}</h1>
-                        <p className="text-[11px] font-bold opacity-50 uppercase tracking-widest">Total Credits: {totalCH}</p>
+                    
+                    <motion.div initial={{ x: 50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="bg-white/5 backdrop-blur-3xl border border-white/10 p-8 rounded-[3.5rem] text-center w-full md:w-105 shadow-inner border-b-12 relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500/30"></div>
+                        <span className="text-[11px] font-black uppercase opacity-40 tracking-[0.5em] block mb-2">Academic Performance</span>
+                        <h1 className={`text-8xl md:text-[10rem] font-black leading-none tracking-tighter ${activeTheme === 'dark' ? 'text-emerald-500' : 'text-white'}`}>{cgpa}</h1>
+                        <p className="text-[10px] font-bold opacity-30 uppercase tracking-[0.2em] mt-4 italic">Total Course Credits: {totalCH}</p>
                     </motion.div>
                 </div>
-                <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mt-32 blur-3xl"></div>
             </header>
 
-            <main className="max-w-6xl mx-auto -mt-16 md:-mt-20 px-4 md:px-6 relative z-10">
+            <main className="max-w-6xl mx-auto -mt-16 px-4 relative z-10">
+                {/* --- SMART SETTINGS PANEL --- */}
                 <AnimatePresence>
                     {showSettings && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-indigo-950 text-white p-6 md:p-10 rounded-[3rem] mb-12 shadow-2xl border border-indigo-800 overflow-hidden">
-                            <h3 className="font-black uppercase tracking-[0.3em] text-xs text-indigo-400 mb-8">Component Editor</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-                                {assessmentTypes.map((type, tIdx) => (
-                                    <div key={tIdx} className="bg-indigo-900/50 p-2 pl-4 rounded-2xl flex items-center gap-2 border border-indigo-800">
-                                        <input className="bg-transparent border-none text-xs font-bold w-full text-white outline-none" value={type} onChange={(e) => updateType(tIdx, e.target.value)} />
-                                        <button onClick={() => setAssessmentTypes(assessmentTypes.filter(t => t !== type))} className="bg-indigo-800 text-red-400 p-2 rounded-xl">✕</button>
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0 }} className={`${activeTheme === 'dark' ? 'bg-slate-900' : 'bg-white shadow-2xl'} p-8 rounded-[3rem] mb-12 border ${theme.border} overflow-hidden`}>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                                <div>
+                                    <h3 className={`font-black uppercase text-xs mb-8 tracking-widest ${theme.text}`}>System Aesthetics</h3>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        {Object.values(themes).map(t => (
+                                            <button key={t.id} onClick={() => { setActiveTheme(t.id); localStorage.setItem('userTheme', t.id); }} className={`p-5 rounded-4xl border-4 transition-all ${activeTheme === t.id ? 'border-emerald-500 bg-emerald-500/5 scale-105 shadow-xl' : 'border-transparent opacity-40 hover:opacity-100'}`}>
+                                                <div className={`h-14 w-full rounded-2xl bg-linear-to-br ${t.header}`}></div>
+                                                <p className="mt-4 text-[9px] font-black uppercase tracking-widest">{t.name}</p>
+                                            </button>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+                                <div>
+                                    <h3 className={`font-black uppercase text-xs mb-8 tracking-widest ${theme.text}`}>Global Assessment Keys</h3>
+                                    <div className="flex flex-wrap gap-2 mb-8">
+                                        {assessmentTypes.map((type, tIdx) => (
+                                            <div key={tIdx} className={`${activeTheme === 'dark' ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'} px-4 py-2 rounded-xl flex items-center gap-3 border shadow-sm`}>
+                                                <input className="bg-transparent border-none text-[11px] font-black uppercase w-20 outline-none" value={type} onChange={(e) => { const n = [...assessmentTypes]; n[tIdx] = e.target.value; setAssessmentTypes(n); }} />
+                                                <button onClick={() => setAssessmentTypes(assessmentTypes.filter(t => t !== type))} className="text-red-400 hover:text-red-600 transition-all">✕</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className={`flex gap-3 p-2 rounded-2xl border ${theme.border} ${activeTheme === 'dark' ? 'bg-black' : 'bg-slate-50 shadow-inner'}`}>
+                                        <input className="bg-transparent px-5 py-3 text-xs w-full font-bold outline-none" placeholder="Add custom type..." value={newType} onChange={(e) => setNewType(e.target.value)} />
+                                        <button onClick={() => { if(newType) { setAssessmentTypes([...assessmentTypes, newType]); setNewType(""); } }} className={`px-10 py-3 rounded-xl text-white text-[11px] font-black uppercase shadow-lg ${theme.primary} hover:scale-105 transition-all`}>Register</button>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex gap-4 max-w-md bg-[#020617] p-2 rounded-3xl border border-indigo-800"><input className="bg-transparent px-6 py-2 text-sm w-full outline-none text-white" placeholder="Add custom type..." value={newType} onChange={(e) => setNewType(e.target.value)} /><button onClick={addType} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black text-xs uppercase">Add</button></div>
                         </motion.div>
                     )}
                 </AnimatePresence>
 
-                <div className="flex justify-center mb-10"><button onClick={() => setShowAnalytics(!showAnalytics)} className="bg-white/80 px-8 py-3 rounded-full text-[11px] font-black uppercase tracking-widest shadow-lg border border-slate-200 hover:bg-white transition-all">{showAnalytics ? 'Hide Analytics' : 'Performance Analytics 📈'}</button></div>
-                <AnimatePresence>{showAnalytics && <AnalyticsChart trend={gpaTrend} />}</AnimatePresence>
+                {/* --- ANALYTICS HUD --- */}
+                <div className="flex justify-center mb-12">
+                    <button onClick={() => setShowAnalytics(!showAnalytics)} className={`${activeTheme === 'dark' ? 'bg-white/10' : 'bg-white shadow-xl'} backdrop-blur-3xl px-12 py-4 rounded-full text-[11px] font-black uppercase tracking-[0.3em] border border-white/10 hover:scale-110 transition-all active:scale-95`}>
+                        {showAnalytics ? 'Hide HUD' : 'Visual Analytics HUD 📈'}
+                    </button>
+                </div>
+                <AnimatePresence>{showAnalytics && <AnalyticsChart trend={semesters.map(s => parseFloat(calculateSGPA(s.subjects)))} theme={theme} activeTheme={activeTheme} />}</AnimatePresence>
 
-                <div className="flex flex-col sm:flex-row justify-center gap-5 mb-20 px-4">
-                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => document.getElementById('mainPdfIn').click()} className="bg-white text-indigo-900 px-12 py-5 rounded-2xl font-black shadow-xl border border-slate-200 uppercase text-xs tracking-widest">📂 Import PDF</motion.button>
-                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className="bg-indigo-600 text-white px-12 py-5 rounded-2xl font-black shadow-xl uppercase text-xs tracking-widest">+ Add Manual Semester</motion.button>
+                {/* --- GLOBAL ACTION BAR --- */}
+                <div className="flex flex-col sm:flex-row justify-center gap-5 mb-24 px-4">
+                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => document.getElementById('mainPdfIn').click()} className="bg-white text-slate-900 px-14 py-6 rounded-4xl font-black shadow-2xl border border-slate-100 uppercase text-xs tracking-widest flex items-center gap-3">📂 <span className="pt-1">Import Official PDF</span></motion.button>
+                    <motion.button whileHover={{ scale: 1.05 }} onClick={() => onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white px-14 py-6 rounded-4xl font-black shadow-2xl uppercase text-xs tracking-widest flex items-center gap-3`}><span className="text-xl">+</span> <span className="pt-1">Establish Semester</span></motion.button>
                     <input type="file" id="mainPdfIn" hidden onChange={handlePdfImport} accept=".pdf" />
                 </div>
 
+                {/* --- SEMESTER WORKSPACE --- */}
                 <AnimatePresence mode="popLayout">
-                    {semesters.map((sem, sIdx) => {
-                        const semSGPA = calculateSGPA(sem.subjects);
-                        return (
-                            <motion.div layout key={sem.id} className="mb-12">
-                                <div className={`flex items-center gap-4 p-5 md:p-7 rounded-[2.5rem] shadow-xl border sticky top-4 z-20 transition-all ${collapsed.sems.includes(sem.id) ? 'bg-[#0F172A] text-white' : 'bg-white'}`}>
-                                    <div className="flex items-center grow cursor-pointer" onClick={() => toggleCollapse('sems', sem.id)}>
-                                        <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black bg-indigo-600 text-white shadow-lg mr-4">{collapsed.sems.includes(sem.id) ? '▶' : '▼'}</div>
-                                        <span className="font-black uppercase tracking-widest text-lg">{sem.name}</span>
-                                        <span className="ml-6 bg-indigo-50 text-indigo-700 px-5 py-2 rounded-full text-xs font-black">SGPA: {semSGPA}</span>
+                    {semesters.map((sem, sIdx) => (
+                        <div key={sem.id} className="mb-16">
+                            <div className={`flex items-center justify-between p-6 md:p-8 rounded-[2.5rem] md:rounded-[3.5rem] shadow-2xl border sticky top-6 z-20 transition-all duration-500 ${activeTheme === 'dark' ? 'bg-slate-900/90 border-slate-700 backdrop-blur-xl' : 'bg-white/95 border-indigo-50 backdrop-blur-xl'}`}>
+                                <div className="flex items-center gap-6 cursor-pointer grow overflow-hidden" onClick={() => setCollapsed(p => ({...p, sems: p.sems.includes(sem.id) ? p.sems.filter(x => x !== sem.id) : [...p.sems, sem.id]}))}>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-2xl ${theme.primary} shrink-0`}>{collapsed.sems.includes(sem.id) ? '▶' : '▼'}</div>
+                                    <div className="overflow-hidden">
+                                        <h3 className="font-black uppercase tracking-[0.2em] text-lg md:text-2xl truncate italic">{sem.name}</h3>
+                                        <p className={`${theme.text} text-[10px] font-black uppercase opacity-60 tracking-widest mt-1`}>Calculated SGPA: {calculateSGPA(sem.subjects)}</p>
                                     </div>
-                                    <button onClick={() => onUpdate(semesters.filter(s => s.id !== sem.id))} className="text-red-400 p-2 mr-2 transition-all">✕</button>
                                 </div>
+                                <button onClick={() => onUpdate(semesters.filter(s => s.id !== sem.id))} className="bg-red-500/10 text-red-500 w-12 h-12 rounded-2xl font-bold hover:bg-red-500 hover:text-white transition-all">✕</button>
+                            </div>
 
-                                {!collapsed.sems.includes(sem.id) && (
-                                    <div className="mt-8 space-y-8 px-2 md:px-8">
-                                        <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
-                                            {sem.subjects.map((sub, subIdx) => {
-                                                const stats = getSubjectStats(sub);
-                                                const isSubCollapsed = collapsed.subs.includes(sub.id);
-                                                return (
-                                                    <motion.div layout variants={itemVariants} key={sub.id} className={`bg-white border-2 rounded-[3rem] p-6 md:p-10 shadow-sm transition-all relative ${isSubCollapsed ? 'border-slate-100 opacity-90 scale-[0.99]' : 'border-white hover:border-indigo-400'}`}>
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="flex items-center gap-6 cursor-pointer grow" onClick={() => toggleCollapse('subs', sub.id)}>
-                                                                 <motion.span animate={{ rotate: isSubCollapsed ? 0 : 45 }} className="text-indigo-600 font-black text-4xl">⊕</motion.span>
-                                                                 <div><h3 className={`font-black uppercase text-sm md:text-xl tracking-tight transition-colors italic ${isSubCollapsed ? 'text-slate-400' : 'text-slate-900'}`}>{sub.title || 'Course Title...'}</h3>{isSubCollapsed && <SummaryBadge stats={stats} />}</div>
+                            {!collapsed.sems.includes(sem.id) && (
+                                <div className="mt-10 space-y-10 px-2 md:px-10">
+                                    {sem.subjects.map((sub, subIdx) => {
+                                        const stats = getSubjectStats(sub);
+                                        const isSubCollapsed = collapsed.subs.includes(sub.id);
+                                        return (
+                                            <div key={sub.id} className={`${activeTheme === 'dark' ? 'bg-slate-900/30' : 'bg-white'} border-2 rounded-[3.5rem] md:rounded-[4.5rem] p-8 md:p-12 shadow-sm transition-all duration-500 relative overflow-hidden ${theme.border} hover:border-emerald-400 group`}>
+                                                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 mb-10">
+                                                    <div className="flex items-center gap-6 cursor-pointer grow" onClick={() => setCollapsed(p => ({...p, subs: p.subs.includes(sub.id) ? p.subs.filter(x => x !== sub.id) : [...p.subs, sub.id]}))}>
+                                                        <span className={`${theme.text} font-black text-4xl transition-transform ${isSubCollapsed ? '' : 'rotate-45'}`}>⊕</span>
+                                                        <div className="overflow-hidden">
+                                                            <h4 className={`font-black uppercase text-xl md:text-3xl tracking-tight italic truncate ${activeTheme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{sub.title || 'Course Designation...'}</h4>
+                                                            {isSubCollapsed && <SummaryBadge stats={stats} theme={theme} />}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 w-full lg:w-auto">
+                                                        <label className={`cursor-pointer ${theme.accent} ${theme.text} px-8 py-4 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] border ${theme.border} flex items-center gap-3 grow lg:grow-0 justify-center hover:scale-105 transition-all shadow-sm`}>
+                                                            📷 Smart OCR Scan
+                                                            <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageScan(e, sIdx, subIdx)} />
+                                                        </label>
+                                                        <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }} className="bg-red-500/10 text-red-400 w-12 h-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all">✕</button>
+                                                    </div>
+                                                </div>
+
+                                                {!isSubCollapsed && (
+                                                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-12 animate-in fade-in zoom-in duration-500">
+                                                        <div className="xl:col-span-3 space-y-12">
+                                                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                                                <div className="md:col-span-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block italic">Subject Title</label><input className={`w-full ${activeTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'} border-2 ${theme.border} rounded-3xl px-8 py-5 font-bold text-xl outline-none focus:border-emerald-500 transition-all shadow-inner`} value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} /></div>
+                                                                <div className="md:col-span-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block md:text-center italic">Units (CH)</label><input type="number" className={`w-full ${activeTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-50'} border-2 ${theme.border} rounded-3xl px-8 py-5 text-center font-black text-3xl outline-none focus:border-emerald-500 shadow-inner`} value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} /></div>
                                                             </div>
-                                                            {!isSubCollapsed && stats.neededForA !== null && stats.neededForA <= 100 && (
-                                                                <div className="hidden lg:flex flex-col items-end mr-6 bg-amber-50 px-4 py-2 rounded-2xl border border-amber-100 animate-pulse"><span className="text-[9px] font-black text-amber-500 uppercase tracking-widest">Target A</span><span className="text-sm font-black text-amber-700">Need {stats.neededForA.toFixed(0)}% more</span></div>
-                                                            )}
-                                                            <div className="flex gap-3">
-                                                                <label className="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-indigo-100 flex items-center gap-2 shadow-sm">
-                                                                    📷 Scan Image
-                                                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageScan(e, sIdx, subIdx)} />
-                                                                </label>
-                                                                <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }} className="bg-slate-50 text-slate-300 w-12 h-12 rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-inner">✕</button>
+                                                            <div className={`flex flex-wrap ${activeTheme === 'dark' ? 'bg-slate-950' : 'bg-slate-100'} p-2 rounded-4xl`}>
+                                                                <button className={`flex-1 px-8 py-4 rounded-3xl text-[10px] font-black tracking-widest transition-all ${sub.mode !== 'assessment' ? `${theme.primary} text-white shadow-2xl` : 'text-slate-400 hover:text-slate-100'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>Absolute Mode</button>
+                                                                <button className={`flex-1 px-8 py-4 rounded-3xl text-[10px] font-black tracking-widest transition-all ${sub.mode === 'assessment' ? `${theme.primary} text-white shadow-2xl` : 'text-slate-400 hover:text-slate-100'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>Assessment Components</button>
+                                                            </div>
+                                                            <div className="mt-8 space-y-4">
+                                                                {sub.mode === 'assessment' ? (
+                                                                    <>
+                                                                        {sub.assessments?.map((asm, aIdx) => (
+                                                                            <div key={asm.id} className={`grid grid-cols-2 md:grid-cols-12 gap-3 p-5 ${activeTheme === 'dark' ? 'bg-slate-950/50 border-slate-800' : 'bg-slate-50'} rounded-3xl items-center border shadow-sm group/row hover:border-emerald-400 transition-all`}>
+                                                                                <div className="col-span-2 md:col-span-4"><select className={`w-full ${activeTheme === 'dark' ? 'bg-slate-900' : 'bg-white'} border border-slate-200 rounded-2xl p-4 font-bold text-xs outline-none focus:border-emerald-500`} value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>{assessmentTypes.map((t, i) => <option key={i} value={t}>{t}</option>)}</select></div>
+                                                                                <div className="col-span-1 md:col-span-2"><input type="number" className={`w-full ${activeTheme === 'dark' ? 'bg-slate-900' : 'bg-white'} p-4 text-[11px] text-center font-black rounded-2xl border outline-none`} value={asm.weight} placeholder="Weight" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
+                                                                                <div className="col-span-1 md:col-span-2"><input type="number" className={`w-full ${activeTheme === 'dark' ? 'bg-slate-900' : 'bg-white'} p-4 text-[11px] text-center font-black rounded-2xl border outline-none`} value={asm.total} placeholder="Max" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
+                                                                                <div className="col-span-1 md:col-span-2"><input type="number" className={`w-full ${theme.accent} ${theme.text} p-4 text-xs text-center font-black rounded-2xl border border-emerald-500/20 outline-none`} value={asm.obt} placeholder="Score" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
+                                                                                <button className="col-span-1 md:col-span-2 text-red-500 font-bold text-xs flex justify-center opacity-40 group-hover/row:opacity-100 transition-all" onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>Remove</button>
+                                                                            </div>
+                                                                        ))}
+                                                                        <button className={`w-full py-6 border-2 border-dashed ${theme.border} rounded-4xl text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] hover:text-emerald-500 transition-all`} onClick={() => { const n = [...semesters]; if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type: assessmentTypes[0], weight:10, total:100, obt:0}); onUpdate(n); }}>+ Initialize Component Row</button>
+                                                                    </>
+                                                                ) : (
+                                                                    <div className={`p-10 md:p-20 ${theme.accent} rounded-[4rem] border-2 border-dashed ${theme.border} text-center shadow-inner relative overflow-hidden`}>
+                                                                        <label className="text-[11px] font-black opacity-60 uppercase tracking-[0.5em] mb-6 block italic">Input Absolute Percentage (0-100)</label>
+                                                                        <input type="number" className={`w-full max-w-62.5 md:max-w-sm ${activeTheme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'} border-2 rounded-[2.5rem] px-8 py-10 font-black text-6xl md:text-9xl text-center ${theme.text} outline-none shadow-2xl focus:scale-105 transition-all`} value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
-
-                                                        {!isSubCollapsed && (
-                                                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-10 pt-10 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-4 gap-12 animate-in fade-in slide-in-from-top-4 duration-500">
-                                                                <div className="lg:col-span-3 space-y-10">
-                                                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                                                        <div className="md:col-span-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Name</label><input className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 outline-none font-bold text-lg focus:border-indigo-600 transition-all" value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} /></div>
-                                                                        <div className="md:col-span-1"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block text-center">CH</label><input type="number" className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 text-center font-black text-2xl outline-none focus:border-indigo-600 transition-all" value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; onUpdate(n); }} /></div>
-                                                                    </div>
-                                                                    <div className="inline-flex bg-slate-100 p-2 rounded-full border border-slate-200 shadow-inner">
-                                                                        <button className={`px-12 py-3 rounded-full text-[10px] font-black ${sub.mode !== 'assessment' ? 'bg-white shadow-xl text-indigo-600' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>SIMPLE MODE</button>
-                                                                        <button className={`px-12 py-3 rounded-full text-[10px] font-black ${sub.mode === 'assessment' ? 'bg-white shadow-xl text-indigo-600' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>ADVANCED MODE</button>
-                                                                    </div>
-                                                                    <div className="mt-8">
-                                                                        {sub.mode === 'assessment' ? (
-                                                                            <div className="space-y-4">
-                                                                                {sub.assessments?.map((asm, aIdx) => (
-                                                                                    <div key={asm.id} className="grid grid-cols-2 md:grid-cols-12 gap-4 p-5 bg-slate-50 rounded-3xl items-center border border-slate-100 hover:bg-white transition-all shadow-sm">
-                                                                                        <div className="col-span-2 md:col-span-4"><select className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-xs focus:border-indigo-600 shadow-inner outline-none appearance-none" value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>{assessmentTypes.map((t, i) => <option key={i} value={t}>{t}</option>)}</select></div>
-                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl border border-slate-200 shadow-inner outline-none focus:border-indigo-500" value={asm.weight} placeholder="W%" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} /></div>
-                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl border border-slate-200 shadow-inner outline-none focus:border-indigo-500" value={asm.total} placeholder="Max" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} /></div>
-                                                                                        <div className="md:col-span-2"><input type="number" className="w-full p-4 text-xs text-center font-black rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-inner outline-none focus:ring-4 focus:ring-indigo-100" value={asm.obt} placeholder="Score" onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} /></div>
-                                                                                        <button className="text-red-400 font-bold hover:text-red-600 text-[10px] uppercase flex justify-end" onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }}>✕</button>
-                                                                                    </div>
-                                                                                ))}
-                                                                                <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-[2.5rem] text-slate-400 text-[10px] font-black hover:border-indigo-500 hover:text-indigo-600 transition-all uppercase tracking-widest" onClick={() => { const n = [...semesters]; if(!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({id: Date.now(), type: assessmentTypes[0], weight:10, total:100, obt:0}); onUpdate(n); }}>+ Link Performance Component</button>
-                                                                            </div>
-                                                                        ) : (
-                                                                            <div className="p-16 bg-indigo-50/40 rounded-[4rem] border-2 border-dashed border-indigo-200 text-center shadow-inner"><label className="text-[11px] font-black text-indigo-400 uppercase tracking-[0.5em] mb-8 block italic">Input Total Percentage (0-100)</label><input type="number" className="w-full max-w-xs bg-white border-2 border-indigo-200 rounded-[2.5rem] px-8 py-10 font-black text-7xl text-center text-indigo-700 focus:ring-8 focus:ring-indigo-100 transition-all shadow-2xl" value={sub.simpleObt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} /></div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <ResultBox stats={stats} />
-                                                            </motion.div>
-                                                        )}
-                                                    </motion.div>
-                                                );
-                                            })}
-                                        </motion.div>
-                                        <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []}); onUpdate(n); }} className="w-full py-10 border-2 border-dashed border-slate-200 rounded-[4rem] text-slate-300 font-black hover:text-indigo-600 uppercase text-xs tracking-widest transition-all shadow-md">+ Add Subject to {sem.name}</button>
-                                    </div>
-                                )}
-                            </motion.div>
-                        );
-                    })}
+                                                        <ResultBox stats={stats} theme={theme} activeTheme={activeTheme} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                    <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.push({id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: []}); onUpdate(n); }} className={`w-full py-12 border-2 border-dashed ${activeTheme === 'dark' ? 'border-slate-800' : 'border-slate-200'} rounded-[4rem] text-slate-400 font-black hover:${theme.text} uppercase text-[11px] tracking-[0.6em] transition-all`}>+ Register New Subject</button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </AnimatePresence>
 
-                <div className="flex flex-col items-center mt-32 space-y-12 pb-20">
-                    <button onClick={() => window.print()} className="bg-[#0F172A] text-white px-20 py-8 rounded-[4rem] font-black shadow-2xl w-full max-w-3xl text-xl uppercase hover:scale-105 active:scale-95 shadow-indigo-900/40 tracking-widest italic">🖨️ Export PDF Transcript</button>
-                    <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase text-[10px] tracking-widest transition-colors">Terminate session</button>
+                <div className="flex flex-col items-center mt-32 space-y-12 pb-24">
+                    <button onClick={() => window.print()} className={`${activeTheme === 'dark' ? 'bg-emerald-600 shadow-emerald-950/50' : 'bg-slate-900 shadow-slate-950/50'} text-white w-full max-w-4xl px-12 py-10 rounded-[4rem] font-black shadow-[0_35px_60px_-15px_rgba(0,0,0,0.5)] text-xl md:text-3xl uppercase hover:scale-105 transition-all tracking-[0.3em] italic`}>🖨️ Finalize & Export Transcript</button>
+                    <button onClick={() => auth.signOut()} className="text-slate-400 font-bold hover:text-red-500 uppercase text-[10px] tracking-[0.5em] transition-all flex items-center gap-3">Terminate Session <span className="text-xl">➔</span></button>
                 </div>
             </main>
         </div>
     );
 };
 
-// --- HELPER SUB-COMPONENTS ---
+// --- HIGH-END UI COMPONENTS ---
+
 const HeaderBtn = ({ icon, onClick }) => (
-    <motion.button whileHover={{ scale: 1.1 }} onClick={onClick} className="bg-white/10 hover:bg-white/20 p-3 rounded-2xl backdrop-blur-md border border-white/10 shadow-xl">{icon}</motion.button>
+    <motion.button whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.9 }} onClick={onClick} className="bg-white/10 hover:bg-white/25 p-3 md:p-5 rounded-3xl backdrop-blur-3xl border border-white/20 shadow-2xl transition-all text-2xl">{icon}</motion.button>
 );
 
 const SyncIndicator = () => (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-indigo-500/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border border-white/10 animate-pulse z-50">Syncing to cloud...</div>
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-500/30 px-6 py-2 rounded-full text-[10px] font-black uppercase text-emerald-300 border border-emerald-500/40 animate-pulse z-50 whitespace-nowrap shadow-2xl backdrop-blur-md italic tracking-[0.3em]">Establishing Cloud Link...</div>
 );
 
-const LoadingOverlay = ({ message }) => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-400 bg-indigo-950/70 backdrop-blur-md flex flex-col items-center justify-center text-white">
-        <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
-        <h3 className="font-black uppercase tracking-widest text-sm italic">{message}</h3>
+const LoadingOverlay = ({ message, theme }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-500 bg-slate-950/90 backdrop-blur-2xl flex flex-col items-center justify-center text-white px-10 text-center">
+        <div className="w-24 h-24 border-[6px] border-white/10 border-t-emerald-500 rounded-full animate-spin mb-10 shadow-[0_0_100px_rgba(16,185,129,0.2)]"></div>
+        <h3 className="font-black uppercase tracking-[0.5em] text-sm md:text-xl italic animate-pulse">{message}</h3>
     </motion.div>
 );
 
-const SummaryBadge = ({ stats }) => (
-    <div className="flex gap-2 mt-2">
-        <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg">Score: {stats.score.toFixed(0)}%</span>
-        <span className="text-[10px] font-black text-white bg-indigo-600 px-3 py-1 rounded-lg uppercase">{stats.gInfo?.g} ({stats.gInfo?.p.toFixed(2)})</span>
+const SummaryBadge = ({ stats, theme }) => (
+    <div className="flex flex-wrap gap-3 mt-4">
+        <span className={`text-[9px] font-black ${theme.text} ${theme.accent} px-4 py-1.5 rounded-full border ${theme.border} uppercase shadow-sm tracking-widest`}>Score: {stats.score.toFixed(0)}%</span>
+        <span className={`text-[9px] font-black text-white ${theme.primary} px-4 py-1.5 rounded-full shadow-lg uppercase tracking-widest`}>{stats.gInfo?.g} ({stats.gInfo?.p.toFixed(2)})</span>
     </div>
 );
 
-const ResultBox = ({ stats }) => (
-    <div className="lg:col-span-1 bg-[#0F172A] text-white rounded-[4rem] p-12 flex flex-col items-center justify-center text-center shadow-2xl h-full border-t-12 border-indigo-600 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-600/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
-        <span className="text-[11px] font-black opacity-30 uppercase tracking-[0.5em] mb-4 block italic">Yield</span>
-        <div className="text-8xl font-black mb-8 tracking-tighter text-indigo-100">{(stats.score || 0).toFixed(0)}<span className="text-3xl opacity-40">%</span></div>
-        <div className="bg-indigo-600 w-full py-6 rounded-4xl font-black text-5xl shadow-xl shadow-indigo-900/50">{stats.gInfo?.g}</div>
-        <p className="mt-8 text-xs font-bold text-indigo-300 uppercase tracking-widest opacity-60">Grade Points: {(stats.gInfo?.p || 0.0).toFixed(2)}</p>
+const ResultBox = ({ stats, theme, activeTheme }) => (
+    <div className={`lg:col-span-1 ${activeTheme === 'dark' ? 'bg-black border-slate-800' : 'bg-slate-950 border-indigo-900'} text-white rounded-[4rem] p-10 md:p-14 flex flex-col items-center justify-center text-center shadow-2xl h-full border-t-15 relative overflow-hidden group transition-all duration-500 hover:border-emerald-500`}>
+        <div className={`absolute top-0 right-0 w-48 h-48 ${theme.primary} opacity-5 rounded-full -mr-24 -mt-24 group-hover:scale-150 transition-transform duration-1000`}></div>
+        <span className="text-[11px] font-black opacity-30 uppercase mb-6 block italic tracking-[0.3em]">Academic Yield</span>
+        <div className="text-7xl md:text-[6rem] font-black mb-6 md:mb-10 tracking-tighter text-white drop-shadow-2xl">{(stats.score || 0).toFixed(0)}<span className="text-3xl opacity-30 font-light">%</span></div>
+        <div className={`${theme.primary} w-full py-6 md:py-8 rounded-4xl md:rounded-[2.5rem] font-black text-5xl md:text-7xl shadow-2xl border border-white/10 group-hover:rotate-1 transition-transform`} >{stats.gInfo?.g}</div>
+        <p className="mt-8 md:mt-12 text-[11px] font-bold text-emerald-400 uppercase tracking-[0.4em] opacity-80">Grade Points: {(stats.gInfo?.p || 0.0).toFixed(2)}</p>
     </div>
 );
 
-const AnalyticsChart = ({ trend }) => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="bg-white p-10 rounded-[4rem] mb-12 shadow-2xl border border-slate-100 text-center overflow-x-auto custom-scrollbar">
-        <h3 className="font-black uppercase text-xs text-slate-400 mb-12 italic tracking-[0.4em]">Performance Analytics (SGPA Trend)</h3>
-        <div className="h-64 w-full min-w-125 relative flex items-end justify-between px-16 border-b-2 border-slate-100 pb-2">
-            <svg className="absolute inset-0 w-full h-full px-16 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <polyline fill="none" stroke="#4F46E5" strokeWidth="3" points={trend.length > 1 ? trend.map((val, i) => `${(i / (trend.length - 1)) * 100},${100 - (val / 4) * 100}`).join(' ') : "0,50 100,50"} />
+const AnalyticsChart = ({ trend, theme, activeTheme }) => (
+    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }} className={`${activeTheme === 'dark' ? 'bg-slate-900/50' : 'bg-white shadow-2xl'} p-8 md:p-14 rounded-[4rem] mb-16 border ${theme.border} text-center overflow-x-auto custom-scrollbar relative overflow-hidden`}>
+        <div className="absolute inset-0 bg-linear-to-b from-emerald-500/5 to-transparent opacity-20"></div>
+        <h3 className={`font-black uppercase text-[11px] md:text-sm ${theme.text} mb-12 md:mb-16 italic tracking-[0.5em] relative z-10`}>Performance Trajectory Matrix</h3>
+        <div className="h-64 md:h-80 w-full min-w-125 md:min-w-200 relative flex items-end justify-between px-16 md:px-24 border-b-2 border-slate-100/10 pb-4 z-10">
+            <svg className="absolute inset-0 w-full h-full px-16 md:px-24 pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor="#10b981"/><stop offset="100%" stopColor="#4f46e5"/></linearGradient>
+                </defs>
+                <polyline fill="none" stroke="url(#lineGrad)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" points={trend.length > 1 ? trend.map((val, i) => `${(i / (trend.length - 1)) * 100},${100 - (val / 4) * 100}`).join(' ') : "0,50 100,50"} className="drop-shadow-[0_10px_10px_rgba(16,185,129,0.4)]" />
             </svg>
             {trend.map((val, i) => (
                 <div key={i} className="flex flex-col items-center z-10 relative group">
-                    <div className="bg-indigo-600 w-5 h-5 rounded-full mb-3 shadow-xl ring-4 ring-indigo-50"></div>
-                    <span className="text-base font-black text-slate-900">{val}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase mt-2">Sem {i+1}</span>
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.1 }} className={`${theme.primary} w-4 h-4 md:w-6 md:h-6 rounded-full mb-4 shadow-[0_0_25px_rgba(16,185,129,0.5)] ring-4 md:ring-8 ring-white group-hover:scale-125 transition-transform cursor-pointer`}></motion.div>
+                    <span className="text-base md:text-xl font-black text-slate-900 dark:text-white">{val}</span>
+                    <span className="text-[10px] font-black text-slate-500 uppercase mt-2 tracking-widest italic">Phase {i+1}</span>
                 </div>
             ))}
         </div>
     </motion.div>
 );
 
-const GradeScaleModal = ({ onClose }) => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
-        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden border border-slate-700">
-            <div className="bg-slate-900 p-6 text-white flex justify-between items-center"><h3 className="font-black uppercase tracking-widest text-xs italic">Superior Standard</h3><button onClick={onClose} className="text-slate-400 hover:text-white transition-all">✕</button></div>
-            <div className="p-8 space-y-2">{[ ["85-100", "A", "4.00"], ["80-84", "A-", "3.66"], ["75-79", "B+", "3.33"], ["71-74", "B", "3.00"], ["68-70", "B-", "2.66"], ["64-67", "C+", "2.33"], ["61-63", "C", "2.00"], ["58-60", "C-", "1.66"], ["Below 50", "F", "0.00"] ].map(([r, g, p], i) => (<div key={i} className="flex justify-between py-2 border-b border-slate-50 last:border-0 items-center"><span className="text-[10px] font-black text-slate-400 uppercase">{r}</span><span className={`text-sm font-black ${g === 'A' ? 'text-indigo-600' : 'text-slate-900'}`}>{g}</span><span className="font-mono font-bold text-slate-400">{p}</span></div>))}</div>
-        </motion.div>
-    </motion.div>
-);
-
-const OnboardingModal = ({ onClose }) => (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-indigo-950/80 backdrop-blur-md">
-        <motion.div initial={{ y: 50 }} animate={{ y: 0 }} className="bg-white w-full max-w-2xl rounded-[4rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10">
-            <div className="bg-indigo-600 p-10 text-white"><h2 className="text-4xl font-black uppercase italic tracking-tighter">A to Z Guide</h2><p className="text-indigo-100 text-sm opacity-80 uppercase tracking-[0.2em] mt-2">Professional Academic Ecosystem</p></div>
-            <div className="p-10 md:p-14 space-y-12 overflow-y-auto grow custom-scrollbar">
-                <GuideStep icon="☁️" title="Cloud Persistence" desc="Data is auto-synced to Firestore. Refresh or switch devices without losing a single mark." />
-                <GuideStep icon="📉" title="Grade Predictor" desc="Amber alerts show exactly what score you need in finals to secure a 4.00 Grade A result." />
-                <GuideStep icon="📷" title="OCR Smart Scan" desc="Snap your marks table and upload to auto-fill assessments. Zero manual typing required." />
-                <GuideStep icon="📊" title="GPA Trendline" desc="Interactive visual analytics track your performance across all semesters dynamically." />
+const GradeScaleModal = ({ onClose, theme }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-600 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-2xl">
+        <motion.div initial={{ scale: 0.9, y: 50 }} animate={{ scale: 1, y: 0 }} className="bg-[#0F172A] w-full max-w-lg rounded-[3.5rem] shadow-[0_0_100px_rgba(16,185,129,0.15)] overflow-hidden border border-white/10 mx-2">
+            <div className="bg-linear-to-r from-slate-900 to-indigo-900 p-8 text-white flex justify-between items-center border-b border-white/5"><h3 className="font-black uppercase tracking-[0.4em] text-sm md:text-base italic">Superior Metric Standard</h3><button onClick={onClose} className="text-white/50 hover:text-white hover:rotate-90 transition-all text-3xl">✕</button></div>
+            <div className="p-10 space-y-3">
+                {[ ["85-100", "A", "4.00"], ["80-84", "A-", "3.66"], ["75-79", "B+", "3.33"], ["71-74", "B", "3.00"], ["68-70", "B-", "2.66"], ["64-67", "C+", "2.33"], ["61-63", "C", "2.00"], ["58-60", "C-", "1.66"], ["Below 50", "F", "0.00"] ].map(([r, g, p], i) => (<div key={i} className="flex justify-between py-4 border-b border-white/5 last:border-0 items-center group/metric"><span className="text-[11px] font-black text-slate-500 group-hover/metric:text-white transition-colors uppercase tracking-widest">{r} Scale</span><span className={`text-xl font-black ${g === 'A' ? 'text-emerald-500' : 'text-white'}`}>{g}</span><span className="font-mono font-black text-emerald-500/50 text-xl">{p}</span></div>))}
             </div>
-            <div className="p-10 border-t border-slate-100 flex justify-center bg-slate-50"><button onClick={onClose} className="bg-indigo-600 text-white px-16 py-5 rounded-3xl font-black uppercase tracking-[0.2em] text-xs shadow-2xl hover:bg-indigo-700 transition-all active:scale-95">Enter Dashboard</button></div>
         </motion.div>
     </motion.div>
 );
 
-const GuideStep = ({ icon, title, desc }) => (
-    <div className="flex gap-8 items-start group">
-        <div className="bg-indigo-50 text-indigo-600 w-20 h-20 rounded-4xl flex items-center justify-center text-4xl shrink-0 border border-indigo-100 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xl">{icon}</div>
-        <div className="pt-2"><h4 className="font-black text-slate-800 uppercase text-lg tracking-widest mb-1 italic">{title}</h4><p className="text-slate-500 text-sm leading-relaxed font-medium">{desc}</p></div>
+const OnboardingModal = ({ onClose, theme }) => (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-600 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-3xl">
+        <motion.div initial={{ y: 100, rotate: -2 }} animate={{ y: 0, rotate: 0 }} className="bg-white w-full max-w-2xl rounded-[4rem] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-white/10 mx-2">
+            <div className={`p-10 md:p-14 text-white ${theme.primary} relative overflow-hidden`}>
+                <div className="absolute top-0 right-0 w-64 h-64 bg-black/10 rounded-full -mr-32 -mt-32"></div>
+                <h2 className="text-3xl md:text-5xl font-black uppercase italic tracking-tighter relative z-10 leading-tight">System Initialization</h2>
+                <p className="text-[10px] md:text-sm opacity-80 uppercase tracking-[0.4em] mt-4 font-black relative z-10">Advanced Academic Ecosystem v6.0</p>
+            </div>
+            <div className="p-10 md:p-16 space-y-12 overflow-y-auto grow custom-scrollbar">
+                <GuideStep theme={theme} icon="⚡" title="Neural Cloud Link" desc="Your academic dataset is synchronized in real-time with Firestore clusters. Access your profile globally." />
+                <GuideStep theme={theme} icon="🧠" title="Grade Intelligence" desc="Amber-alert predictors use predictive algorithms to calculate the exact finals threshold for Grade A." />
+                <GuideStep theme={theme} icon="📸" title="Hyper-OCR Engine" desc="Scan your results using high-precision character recognition. Zero manual input architecture." />
+            </div>
+            <div className="p-10 border-t border-slate-100 flex justify-center bg-slate-50"><button onClick={onClose} className={`${theme.primary} text-white px-14 py-6 rounded-3xl font-black uppercase tracking-[0.5em] text-[11px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all`}>Authorize Dashboard</button></div>
+        </motion.div>
+    </motion.div>
+);
+
+const GuideStep = ({ icon, title, desc, theme }) => (
+    <div className="flex gap-6 md:gap-10 items-start group">
+        <div className={`${theme.accent} ${theme.text} w-16 h-16 md:w-24 md:h-24 rounded-4xl flex items-center justify-center text-3xl md:text-5xl shrink-0 border-2 ${theme.border} group-hover:${theme.primary} group-hover:text-white transition-all shadow-2xl`}>{icon}</div>
+        <div className="pt-2"><h4 className="font-black text-slate-900 uppercase text-lg md:text-2xl tracking-tight italic mb-2">{title}</h4><p className="text-slate-500 text-[12px] md:text-base leading-relaxed font-bold opacity-80">{desc}</p></div>
     </div>
 );
-
-// Helper function for Scan integration inside Dashboard
-const scanImageForMarks = async (file) => {
-    const { data: { text } } = await Tesseract.recognize(file, 'eng');
-    const lines = text.split('\n');
-    const results = [];
-    lines.forEach(line => {
-        const match = line.match(/([A-Za-z\s-]+)\s+(\d+\.?\d*)\s+(\d+\.?\d*)\s+(\d+\.?\d*)/);
-        if (match && !line.toLowerCase().includes('weightage')) {
-            results.push({ total: match[3], obtained: match[4], type: match[1].trim(), weight: match[2] });
-        }
-    });
-    return results;
-};
 
 export default Dashboard;
