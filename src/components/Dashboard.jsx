@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { auth, db } from '../services/firebase';
+// import { Github as GithubIcon, Linkedin as LinkedinIcon } from 'lucide-react';
 import { calculateGrade, parseSuperiorTranscript } from '../services/pdfParser';
+import UpdateModal from './UpdateModal';
 
 const themes = {
     professional: {
@@ -16,12 +18,55 @@ const themes = {
     }
 };
 
+const GithubIcon = (props) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}
+    >
+        <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+        <path d="M9 18c-4.51 2-5-2-7-2" />
+    </svg>
+);
+const LinkedinIcon = (props) => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z"></path>
+        <circle cx="4" cy="4" r="2"></circle>
+    </svg>
+);
+
 const gradeColors = {
     'A': 'text-emerald-600 font-bold', 'A-': 'text-teal-600', 'B+': 'text-blue-600',
     'F': 'text-rose-600 animate-pulse font-black', 'default': 'text-slate-500'
 };
 
+const gradeToMarks = {
+    'A': 85, 'A-': 80, 'B+': 75, 'B': 71, 'B-': 68,
+    'C+': 64, 'C': 61, 'C-': 58, 'D+': 54, 'D': 50, 'F': 0
+};
+
 const Dashboard = ({ user, semesters, onUpdate }) => {
+
+    // --- UPDATE MODAL LOGIC ---
+    const CURRENT_VERSION = "2.0"; // Jab bhi naya update aye, bas ye number badal dein (e.g., 2.1)
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+
+    useEffect(() => {
+        // Check karein ke browser memory mein pehle se koi version saved hai?
+        const seenVersion = localStorage.getItem('app_version');
+
+        // Agar saved version current version se match nahi karta, toh modal dikhayein
+        if (seenVersion !== CURRENT_VERSION) {
+            setShowUpdateModal(true);
+        }
+    }, []);
+
+    const handleCloseUpdate = () => {
+        // "Got it" dabane par current version save kar dein taake dobara na dikhayi de
+        localStorage.setItem('app_version', CURRENT_VERSION);
+        setShowUpdateModal(false);
+    };
+
     const fileInputRef = useRef(null);
     const [isParsing, setIsParsing] = useState(false);
 
@@ -30,7 +75,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     const [showGradeTable, setShowGradeTable] = useState(false);
     const [collapsedSems, setCollapsedSems] = useState([]);
 
-    // --- Custom Assessment Types (Private to User) ---
+    // --- Custom Assessment Types ---
     const defaultAssessments = ['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Others'];
     const [customAssessments, setCustomAssessments] = useState(() => {
         const saved = localStorage.getItem(`custom_asm_${user?.uid}`);
@@ -38,7 +83,6 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     });
 
     const assessmentTypes = [...defaultAssessments, ...customAssessments];
-
     const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme') || 'professional');
     const theme = themes[activeTheme] || themes.professional;
 
@@ -75,21 +119,43 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     const cgpa = (semesters.reduce((acc, s) => acc + s.subjects.reduce((a, sub) => a + (getSubjectStats(sub).gInfo.p * (parseFloat(sub.ch) || 0)), 0), 0) / (totalCH || 1)).toFixed(2);
 
     return (
+
         <div className={`min-h-screen ${theme.bg} transition-colors duration-500 pb-32 font-sans`}>
+
+            {/* ✅ UPDATE MODAL KO AISE RAKHEIN */}
+            <UpdateModal
+                isOpen={showUpdateModal}
+                onClose={handleCloseUpdate}
+            />
+
+
+
             {/* TOP NAVIGATION */}
             <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-4 py-3 shadow-sm">
                 <div className="max-w-7xl mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         {showSettings ? (
                             <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                </svg>
                             </button>
                         ) : (
-                            <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName}`} className="w-9 h-9 rounded-full border border-slate-200" alt="p" />
+                            /* FIX: Agar displayName null ho tou 'Student' ka 'S' dikhaye na ke 'NU' */
+                            <img
+                                src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'Student'}&background=6366f1&color=fff`}
+                                className="w-9 h-9 rounded-full border border-slate-200 shadow-sm"
+                                alt="profile"
+                            />
                         )}
-                        <span className="font-bold text-slate-800 text-sm">{showSettings ? "User Profile" : user?.displayName || 'Student'}</span>
+
+                        {/* FIX: Naam ke liye bhi fallback add kiya */}
+                        <span className="font-bold text-slate-800 text-sm">
+                            {showSettings ? "User Profile" : (user?.displayName || 'Student')}
+                        </span>
                     </div>
-                    {!showSettings && (
+
+                    {!showSettings && semesters.length > 0 && (
                         <div className="flex flex-col items-center">
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total CGPA</span>
                             <span className="text-2xl font-black text-indigo-600 leading-none">{cgpa}</span>
@@ -105,23 +171,48 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                 {showSettings ? (
                     <div className="mt-8">
                         <SettingsPanel
-                            user={user}
-                            themes={themes}
-                            activeTheme={activeTheme}
-                            setActiveTheme={setActiveTheme}
-                            customAssessments={customAssessments}
-                            setCustomAssessments={setCustomAssessments}
+                            user={user} themes={themes} activeTheme={activeTheme} setActiveTheme={setActiveTheme}
+                            customAssessments={customAssessments} setCustomAssessments={setCustomAssessments}
                         />
                     </div>
                 ) : (
                     <>
-                        <header className={`bg-linear-to-br ${theme.header} -mx-4 pt-12 pb-24 px-6 rounded-b-[3.5rem] text-center border-b border-slate-200/50 mb-12`}>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Academic Portal</h1>
-                            <p className="text-slate-600 mt-2 font-medium">
-                                Welcome, <span className="text-indigo-600 font-black">{user?.displayName || 'User'}</span>! Manage your progress.
-                            </p>
-                        </header>
+                        {/* UPDATED: Greeting Card vs Standard Header */}
+                        {semesters.length === 0 ? (
+                            <div className="mt-12 mb-12">
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden"
+                                >
+                                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+                                    <div className="relative z-10">
+                                        <h2 className="text-3xl md:text-4xl font-black tracking-tight">
+                                            Ready to track your progress, <span className="text-yellow-300">{user?.displayName?.split(' ')[0] || 'Student'}</span>?
+                                        </h2>
+                                        <p className="mt-4 text-indigo-100 text-base md:text-lg leading-relaxed max-w-xl font-medium">
+                                            Apne grades add karna shuru karein taake hum aapka CGPA calculate kar saken aur aapko academic insights de saken.
+                                        </p>
+                                        <div className="mt-10 flex items-center gap-3 justify-center animate-bounce text-yellow-300">
+                                            <span className="text-[10px] font-black uppercase  tracking-[0.2em]">Start by adding a semester</span>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <polyline points="19 12 12 19 5 12"></polyline>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        ) : (
+                            <header className={`bg-linear-to-br ${theme.header} -mx-4 pt-12 pb-24 px-6 rounded-b-[3.5rem] text-center border-b border-slate-200/50 mb-12`}>
+                                <h1 className="text-4xl font-black text-slate-900 tracking-tight">Academic Portal</h1>
+                                <p className="text-slate-600 mt-2 font-medium">
+                                    Welcome, <span className="text-indigo-600 font-black">{user?.displayName || 'User'}</span>! Manage your progress.
+                                </p>
+                            </header>
+                        )}
 
+                        {/* ACTION BUTTONS */}
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
                             <button onClick={() => onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white w-full sm:w-auto px-10 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:scale-[1.02] transition-all flex items-center justify-center gap-2`}>
                                 <span>+ Add Semester</span>
@@ -138,11 +229,10 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                             <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white text-slate-700 w-full sm:w-auto px-10 py-4 rounded-2xl font-bold border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
                                 📄 {isParsing ? 'Processing...' : 'Import PDF'}
                             </button>
-                            {/* NEW: Clear All Data Button */}
                             <button
                                 onClick={() => {
-                                    if (window.confirm("Are you sure you want to delete ALL semesters? This cannot be undone.")) {
-                                        onUpdate([]); // Saara data empty array se replace ho jayega
+                                    if (window.confirm("Are you sure you want to delete ALL semesters?")) {
+                                        onUpdate([]);
                                     }
                                 }}
                                 className="bg-rose-50 text-rose-600 w-full sm:w-auto px-10 py-4 rounded-2xl font-bold border border-rose-100 shadow-sm hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
@@ -154,6 +244,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                             </button>
                         </div>
 
+                        {/* SEMESTER LIST WITH LAYOUT TAG */}
                         <LayoutGroup>
                             <div className="space-y-6">
                                 {semesters.map((sem, sIdx) => {
@@ -161,50 +252,31 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                     const semSummary = calculateSGPAData(sem.subjects);
                                     return (
                                         <motion.div layout key={sem.id} className={`${theme.card} rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden`}>
-
-                                            {/* ENHANCED SEMESTER HEADER */}
                                             <div
                                                 className={`p-5 flex justify-between items-center cursor-pointer transition-all duration-300 ${isCollapsed ? 'bg-slate-50/80 hover:bg-indigo-50/30' : 'bg-white border-b border-slate-100'}`}
                                                 onClick={() => toggleSemester(sem.id)}
                                             >
                                                 <div className="flex items-center gap-4">
-                                                    <motion.div
-                                                        animate={{ rotate: isCollapsed ? 0 : 90 }}
-                                                        className={`p-1.5 rounded-xl transition-colors ${isCollapsed ? 'bg-white text-slate-400 border border-slate-100' : 'bg-indigo-600 text-white shadow-md shadow-indigo-200'}`}
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                                            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                                                        </svg>
+                                                    <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} className={`p-1.5 rounded-xl transition-colors ${isCollapsed ? 'bg-white text-slate-400 border border-slate-100' : 'bg-indigo-600 text-white shadow-md shadow-indigo-200'}`}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
                                                     </motion.div>
                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
                                                         <h3 className="font-black text-slate-800 uppercase text-[11px] tracking-[0.15em]">{sem.name}</h3>
                                                         <AnimatePresence>
                                                             {isCollapsed && (
-                                                                <motion.div
-                                                                    initial={{ opacity: 0, x: -10 }}
-                                                                    animate={{ opacity: 1, x: 0 }}
-                                                                    className="flex items-center gap-2"
-                                                                >
-                                                                    <span className="text-[10px] font-black bg-white border border-slate-100 text-indigo-600 px-2.5 py-0.5 rounded-lg shadow-xs">
-                                                                        ⭐ {semSummary.sgpa} SGPA
-                                                                    </span>
-                                                                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-lg border border-emerald-100">
-                                                                        🎯 {semSummary.grade}
-                                                                    </span>
+                                                                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2">
+                                                                    <span className="text-[10px] font-black bg-white border border-slate-100 text-indigo-600 px-2.5 py-0.5 rounded-lg shadow-xs">⭐ {semSummary.sgpa} SGPA</span>
+                                                                    <span className="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-lg border border-emerald-100">🎯 {semSummary.grade}</span>
                                                                 </motion.div>
                                                             )}
                                                         </AnimatePresence>
                                                     </div>
                                                 </div>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this semester?")) onUpdate(semesters.filter(s => s.id !== sem.id)); }}
-                                                    className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl"
-                                                >
+                                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this semester?")) onUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             </div>
 
-                                            {/* CONTENT */}
                                             <AnimatePresence>
                                                 {!isCollapsed && (
                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6">
@@ -213,7 +285,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                             return (
                                                                 <div key={sub.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 relative group">
                                                                     <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                                                                    <input className="bg-transparent font-bold text-sm outline-none mb-3 block w-full focus:text-indigo-600" value={sub.title} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} placeholder="Subject" />
+                                                                    <input className="bg-transparent font-bold text-sm outline-none mb-3 block w-full focus:text-indigo-600" value={sub.title} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} placeholder="Subject Name" />
 
                                                                     <div className="flex gap-1 p-1 bg-slate-200/50 rounded-lg mb-4">
                                                                         <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode !== 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>Simple</button>
@@ -221,33 +293,121 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                     </div>
 
                                                                     {sub.mode === 'assessment' ? (
+                                                                        /* 1. ASSESSMENT MODE: Detailed Weightage Entry */
                                                                         <div className="space-y-2 mb-4">
-                                                                            {/* --- NEW: Header Labels --- */}
                                                                             {sub.assessments?.length > 0 && (
                                                                                 <div className="grid grid-cols-12 gap-1 px-1 mb-1">
-                                                                                    <span className="col-span-5 text-[8px] font-black text-slate-400 uppercase ml-1 tracking-tighter">Assessment Type</span>
-                                                                                    <span className="col-span-2 text-[8px] font-black text-slate-400 uppercase text-center tracking-tighter">Obtained</span>
+                                                                                    <span className="col-span-5 text-[8px] font-black text-slate-400 uppercase ml-1 tracking-tighter text-left">Assessment Type</span>
+                                                                                    <span className="col-span-2 text-[8px] font-black text-slate-400 uppercase text-center tracking-tighter">Obt.</span>
                                                                                     <span className="col-span-2 text-[8px] font-black text-slate-400 uppercase text-center tracking-tighter">Total</span>
-                                                                                    <span className="col-span-2 text-[8px] font-black text-slate-400 uppercase text-center tracking-tighter">Weight %</span>
+                                                                                    <span className="col-span-2 text-[8px] font-black text-slate-400 uppercase text-center tracking-tighter">Weight%</span>
                                                                                 </div>
                                                                             )}
                                                                             {sub.assessments?.map((asm, aIdx) => (
                                                                                 <div key={asm.id} className="grid grid-cols-12 gap-1 items-center">
-                                                                                    <select className="col-span-5 bg-white border border-slate-100 rounded-lg p-1 text-[9px] outline-none" value={asm.type} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
+                                                                                    <select className="col-span-5 bg-white border border-slate-100 rounded-lg p-1 text-[9px] font-bold outline-none" value={asm.type} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
                                                                                         {assessmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                                                                     </select>
-                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[9px] font-bold" value={asm.obt} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px]" value={asm.total} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px]" value={asm.weight} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} />
-                                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }} className="col-span-1 text-rose-300">✕</button>
+                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[9px] font-bold outline-none" value={asm.obt} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.total} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.weight} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} />
+                                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }} className="col-span-1 text-rose-300 hover:text-rose-500 transition-colors">✕</button>
                                                                                 </div>
                                                                             ))}
-                                                                            <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); if (!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({ id: Date.now(), type: 'Quiz', weight: 10, total: 100, obt: 0 }); onUpdate(n); }} className="w-full py-1 border border-dashed border-indigo-200 rounded-lg text-[9px] font-bold text-indigo-500">+ Row</button>
+
+                                                                            {/* Assessment Row Addition */}
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    const n = JSON.parse(JSON.stringify(semesters));
+                                                                                    if (!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
+                                                                                    n[sIdx].subjects[subIdx].assessments.push({ id: Date.now(), type: 'Quiz', weight: 10, total: 100, obt: 0 });
+                                                                                    onUpdate(n);
+                                                                                }}
+                                                                                className="w-full py-2 border border-dashed border-indigo-200 rounded-xl text-[9px] font-black uppercase text-indigo-500 hover:bg-indigo-50 transition-all mt-2"
+                                                                            >
+                                                                                + Add Assessment Row
+                                                                            </button>
                                                                         </div>
                                                                     ) : (
-                                                                        <div className="bg-white rounded-xl p-3 border border-slate-100 text-center mb-4">
-                                                                            <input type="number" className="bg-transparent font-black text-2xl w-full text-center outline-none" value={sub.simpleObt} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].simpleObt = e.target.value; onUpdate(n); }} />
-                                                                            <p className="text-[8px] font-bold text-slate-300 uppercase mt-1">Direct Marks %</p>
+                                                                        /* 2. DUAL SIMPLE MODE: Grade Selector vs. Manual Marks */
+                                                                        <div className="space-y-4 mb-4">
+                                                                            {/* Credit Hours Input Row */}
+                                                                            <div className="bg-white p-2 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between px-4 transition-all hover:border-indigo-200">
+                                                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em]">Course Credit Hours</span>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    className="w-12 bg-slate-50 border border-slate-100 rounded-lg font-bold text-center outline-none text-indigo-600 text-sm py-1 focus:ring-1 focus:ring-indigo-400"
+                                                                                    value={sub.ch}
+                                                                                    onChange={(e) => {
+                                                                                        const n = JSON.parse(JSON.stringify(semesters));
+                                                                                        n[sIdx].subjects[subIdx].ch = e.target.value;
+                                                                                        onUpdate(n);
+                                                                                    }}
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* Mode Toggle (Grade vs Marks) */}
+                                                                            <div className="flex gap-1 p-1 bg-slate-100 rounded-[1rem] max-w-[150px] mx-auto shadow-inner">
+                                                                                <button
+                                                                                    className={`flex-1 py-1 text-[7px] font-black uppercase rounded-lg transition-all ${!sub.isManual ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                                    onClick={() => {
+                                                                                        const n = JSON.parse(JSON.stringify(semesters));
+                                                                                        n[sIdx].subjects[subIdx].isManual = false;
+                                                                                        onUpdate(n);
+                                                                                    }}
+                                                                                >By Grade</button>
+                                                                                <button
+                                                                                    className={`flex-1 py-1 text-[7px] font-black uppercase rounded-lg transition-all ${sub.isManual ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                                                                                    onClick={() => {
+                                                                                        const n = JSON.parse(JSON.stringify(semesters));
+                                                                                        n[sIdx].subjects[subIdx].isManual = true;
+                                                                                        onUpdate(n);
+                                                                                    }}
+                                                                                >By Marks</button>
+                                                                            </div>
+
+                                                                            {/* Dynamic Display for Grade or Marks */}
+                                                                            <div className="bg-indigo-50/50 rounded-[2rem] p-5 border border-indigo-100 text-center relative overflow-hidden group">
+                                                                                {!sub.isManual ? (
+                                                                                    /* Sub-Mode A: Grade Selection */
+                                                                                    <div className="space-y-3 relative z-10">
+                                                                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Select Grade</p>
+                                                                                        <select
+                                                                                            className="bg-white border-2 border-indigo-100 rounded-2xl px-6 py-2.5 font-black text-indigo-600 outline-none cursor-pointer shadow-lg hover:border-indigo-300 transition-all text-sm appearance-none"
+                                                                                            value={Object.keys(gradeToMarks).find(key => gradeToMarks[key] === parseFloat(sub.simpleObt)) || "F"}
+                                                                                            onChange={(e) => {
+                                                                                                const marks = gradeToMarks[e.target.value] || 0;
+                                                                                                const n = JSON.parse(JSON.stringify(semesters));
+                                                                                                n[sIdx].subjects[subIdx].simpleObt = marks;
+                                                                                                onUpdate(n);
+                                                                                            }}
+                                                                                        >
+                                                                                            {Object.keys(gradeToMarks).map(g => <option key={g} value={g}>{g}</option>)}
+                                                                                        </select>
+                                                                                        <div className="flex flex-col items-center mt-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                                                            <span className="text-2xl font-black text-indigo-700">{sub.simpleObt || 0}%</span>
+                                                                                            <span className="text-[7px] font-bold text-indigo-300 uppercase tracking-tighter">Mapped Percentage</span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    /* Sub-Mode B: Manual Marks Entry */
+                                                                                    <div className="space-y-3 relative z-10">
+                                                                                        <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Direct Marks %</p>
+                                                                                        <input
+                                                                                            type="number"
+                                                                                            className="bg-white border-2 border-indigo-100 rounded-2xl px-4 py-2 w-28 text-center font-black text-3xl text-indigo-600 outline-none shadow-lg focus:border-indigo-400 transition-all"
+                                                                                            value={sub.simpleObt}
+                                                                                            placeholder="0"
+                                                                                            onChange={(e) => {
+                                                                                                const n = JSON.parse(JSON.stringify(semesters));
+                                                                                                n[sIdx].subjects[subIdx].simpleObt = e.target.value;
+                                                                                                onUpdate(n);
+                                                                                            }}
+                                                                                        />
+                                                                                        <p className="text-[7px] text-indigo-300 font-black uppercase italic tracking-widest">Type Exact Score</p>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                     <div className="flex justify-between px-2 pt-2 border-t border-slate-100 text-[10px] font-bold">
@@ -270,93 +430,39 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                 )}
             </main>
 
-            <footer className="w-full py-16 mt-20 border-t border-slate-200/60 bg-white/20 backdrop-blur-md flex flex-col items-center gap-6">
-                {/* Animated Sub-text Section */}
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="flex flex-col items-center gap-3"
-                >
-                    {/* New Text Line */}
-                    <p className="text-[9px] font-black tracking-[0.4em] text-black uppercase">
-                        Crafted with Precision
-                    </p>
-
-                    {/* Abdullah Badge */}
-                    <div className="flex items-center gap-2.5 bg-white/80 px-5 py-2.5 rounded-2xl shadow-sm border border-slate-100 backdrop-blur-sm group hover:border-indigo-200 transition-all duration-300">
-                        <span className="text-[11px] font-bold text-black tracking-wider">Made with</span>
-                        <motion.span
-                            className="text-rose-500 text-xs">
-                            ❤️
-                        </motion.span>
-                        <span className="text-indigo-600 font-black tracking-tight text-sm">
-                            Abdullah
-                        </span>
+            {/* FOOTER */}
+            <footer className="py-6 mt-10 border-t border-gray-100 px-6 md:px-12 bg-white/50 backdrop-blur-sm">
+                <p className="text-center text-[10px] uppercase tracking-[0.3em] text-gray-400 font-bold mb-6">Crafted with Precision</p>
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-1.5 text-sm text-gray-600 order-2 md:order-1">
+                        <span>Made with</span> <span className="text-red-500 animate-pulse text-lg">❤️</span> <span>by</span>
+                        <span className="font-bold text-indigo-600 hover:underline cursor-pointer">Abdullah</span>
                     </div>
-                </motion.div>
-
-                {/* Social Links */}
-                <div className="flex items-center gap-4">
-                    {[
-                        {
-                            id: 'github',
-                            href: 'https://github.com/abdullahislam123',
-                            color: 'hover:text-slate-900 hover:bg-slate-50',
-                            path: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-                        },
-                        {
-                            id: 'linkedin',
-                            href: 'https://www.linkedin.com/in/abdullah-islam-81730b2a1/',
-                            color: 'hover:text-blue-600 hover:bg-blue-50',
-                            path: "M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854V1.146zm4.943 12.248V6.169H2.542v7.225h2.401zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248-.822 0-1.359.54-1.359 1.248 0 .694.521 1.248 1.327 1.248h.016zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016a5.54 5.54 0 0 1 .016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225h2.4z"
-                        }
-                    ].map((link) => (
-                        <motion.a
-                            key={link.id}
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            whileHover={{ y: -4, scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className={`p-2.5 bg-white rounded-xl border border-slate-100 text-slate-400 ${link.color} transition-all duration-300 shadow-xs`}
-                        >
-                            <svg width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-                                <path d={link.path} />
-                            </svg>
-                        </motion.a>
-                    ))}
+                    <div className="flex items-center gap-6 text-gray-400 order-1 md:order-2">
+                        <a href="#" target="_blank"><GithubIcon className="w-5 h-5 hover:text-black transition-all" /></a>
+                        <a href="#" target="_blank"><LinkedinIcon className="w-5 h-5 hover:text-blue-600 transition-all" /></a>
+                    </div>
                 </div>
-
-                {/* Footer Bottom Mark */}
-                <div className="flex items-center gap-2 opacity-30">
-                    <div className="h-[1px] w-8 bg-white"></div>
-                    <span className="text-[8px] font-bold text-black tracking-[0.3em]">Superior Academic Portal</span>
-                    <div className="h-[1px] w-8 bg-slate-400"></div>
+                <div className="mt-8 pt-4 border-t border-gray-50 flex justify-center">
+                    <p className="text-[10px] text-gray-300 italic tracking-wider">Superior Academic Portal — 2026</p>
                 </div>
             </footer>
-
-
 
             {/* BOTTOM NAVIGATION */}
             <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-6">
                 <nav className="bg-slate-900/90 backdrop-blur-xl border border-white/10 p-2 rounded-3xl shadow-2xl flex items-center gap-2">
                     <button onClick={() => setShowSettings(false)} className={`flex flex-col items-center p-3 rounded-2xl transition-all ${!showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}>
-                        <span className="text-xl">🏠</span>
-                        <span className="text-[7px] font-black uppercase mt-1">Home</span>
+                        <span className="text-xl">🏠</span><span className="text-[7px] font-black uppercase mt-1">Home</span>
                     </button>
                     <button onClick={() => setShowGradeTable(true)} className="flex flex-col items-center p-3 rounded-2xl text-slate-400">
-                        <span className="text-xl">📊</span>
-                        <span className="text-[7px] font-black uppercase mt-1">Scale</span>
+                        <span className="text-xl">📊</span><span className="text-[7px] font-black uppercase mt-1">Scale</span>
                     </button>
                     <button onClick={() => setShowSettings(true)} className={`flex flex-col items-center p-3 rounded-2xl transition-all ${showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}>
-                        <span className="text-xl">⚙️</span>
-                        <span className="text-[7px] font-black uppercase mt-1">Profile</span>
+                        <span className="text-xl">⚙️</span><span className="text-[7px] font-black uppercase mt-1">Profile</span>
                     </button>
                     <div className="w-[1px] h-8 bg-white/10 mx-1" />
                     <button onClick={() => auth.signOut()} className="flex flex-col items-center p-3 rounded-2xl text-rose-400 hover:bg-rose-500/10 transition-all">
-                        <span className="text-xl">🚪</span>
-                        <span className="text-[7px] font-black uppercase mt-1">Exit</span>
+                        <span className="text-xl">🚪</span><span className="text-[7px] font-black uppercase mt-1">Exit</span>
                     </button>
                 </nav>
             </div>

@@ -1,27 +1,46 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth, googleProvider } from '../services/firebase';
+// Added updateProfile and standard modular methods
+import { 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    signInWithPopup, 
+    updateProfile 
+} from 'firebase/auth';
 
 const Auth = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false); // ✅ State for eye toggle
-
+    const [fullName, setFullName] = useState(''); // ✅ State for name
+    const [showPassword, setShowPassword] = useState(false);
+    
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            if (isLogin) {
-                await auth.signInWithEmailAndPassword(email, password);
-            } else {
-                await auth.createUserWithEmailAndPassword(email, password);
-            }
-        } catch (err) {
-            alert(err.message);
-        }
-    };
+    e.preventDefault();
+    try {
+        if (isLogin) {
+            await signInWithEmailAndPassword(auth, email, password);
+        } else {
+            // 1. Account create karein
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            
+            // 2. Profile update karein
+            await updateProfile(userCredential.user, {
+                displayName: fullName.trim()
+            });
 
-    const handleGoogle = () => auth.signInWithPopup(googleProvider);
+            // ✅ CRITICAL FIX: User ko reload karein taake latest displayName fetch ho
+            await userCredential.user.reload(); 
+
+            // Taake local session foran sync ho jaye
+            console.log("Profile Name Synced:", auth.currentUser.displayName);
+        }
+    } catch (err) {
+        alert(err.message);
+    }
+};
+    const handleGoogle = () => signInWithPopup(auth, googleProvider);
 
     return (
         <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-6 relative overflow-hidden">
@@ -36,7 +55,7 @@ const Auth = () => {
             >
                 <div className="text-center mb-10">
                     <div className="flex justify-center mb-6">
-                        <img src="src/assets/uni_logo.png" alt="Superior Logo" className="h-16 w-auto object-contain" />
+                        <img src="src/assets/favicon-96x96.png" alt="Superior Logo" className="h-16 w-auto object-contain" />
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                         {isLogin ? 'Welcome Back' : 'Create Account'}
@@ -56,7 +75,14 @@ const Auth = () => {
                                 exit={{ opacity: 0, height: 0 }}
                             >
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Full Name</label>
-                                <input className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-5 py-4 focus:border-blue-600 outline-none font-bold" type="text" placeholder="Enter full name" required />
+                                <input 
+                                    className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-5 py-4 focus:border-blue-600 outline-none font-bold" 
+                                    type="text" 
+                                    placeholder="Enter full name" 
+                                    value={fullName} // ✅ Linked to state
+                                    onChange={(e) => setFullName(e.target.value)} // ✅ Update state
+                                    required 
+                                />
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -66,7 +92,6 @@ const Auth = () => {
                         <input className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl px-5 py-4 focus:border-blue-600 outline-none font-bold" type="email" placeholder="name@university.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </div>
 
-                    {/* ✅ Password Field with Eye Toggle */}
                     <div className="relative">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">Password</label>
                         <div className="relative">
