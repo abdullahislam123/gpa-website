@@ -45,7 +45,7 @@ const gradeToMarks = {
     'C+': 64, 'C': 61, 'C-': 58, 'D+': 54, 'D': 50, 'F': 0
 };
 
-const Dashboard = ({ user, semesters, handleSyncUpdate }) => {
+const Dashboard = ({ user, semesters, onUpdate }) => {
 
     // --- UPDATE MODAL LOGIC ---
     const CURRENT_VERSION = "2.0"; // Jab bhi naya update aye, bas ye number badal dein (e.g., 2.1)
