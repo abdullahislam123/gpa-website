@@ -55,8 +55,8 @@ const Auth = () => {
             >
                 <div className="text-center mb-10">
                     <div className="flex justify-center mb-6">
-                        <img src="src/assets/favicon-96x96.png" alt="Superior Logo" className="h-16 w-auto object-contain" />
-                    </div>
+                        <img src="/favicon-96x96.png" alt="Superior Logo" className="h-16 w-auto object-contain" />
+                    </div>  
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                         {isLogin ? 'Welcome Back' : 'Create Account'}
                     </h1>
