@@ -65,7 +65,7 @@ function App() {
         <Dashboard 
           user={user} 
           semesters={semesters} 
-          onUpdate={handleUpdate} 
+          handleUpdate={handleUpdate} 
         />
       )}
     </div>

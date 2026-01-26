@@ -45,7 +45,7 @@ const gradeToMarks = {
     'C+': 64, 'C': 61, 'C-': 58, 'D+': 54, 'D': 50, 'F': 0
 };
 
-const Dashboard = ({ user, semesters, onUpdate }) => {
+const Dashboard = ({ user, semesters, handleSyncUpdate }) => {
 
     // --- UPDATE MODAL LOGIC ---
     const CURRENT_VERSION = "2.0"; // Jab bhi naya update aye, bas ye number badal dein (e.g., 2.1)
@@ -118,6 +118,63 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     const totalCH = semesters.reduce((acc, s) => acc + s.subjects.reduce((a, b) => a + (parseFloat(b.ch) || 0), 0), 0);
     const cgpa = (semesters.reduce((acc, s) => acc + s.subjects.reduce((a, sub) => a + (getSubjectStats(sub).gInfo.p * (parseFloat(sub.ch) || 0)), 0), 0) / (totalCH || 1)).toFixed(2);
 
+    // --- 1. CLOUD SE DATA FETCH KARNA (For Mobile Sync) ---
+    useEffect(() => {
+        const loadInitialData = async () => {
+            if (user?.uid) {
+                try {
+                    const docRef = db.collection('users').doc(user.uid);
+                    const docSnap = await docRef.get();
+
+                    if (docSnap.exists) {
+                        const cloudSemesters = docSnap.data().semesters || [];
+                        // Agar local storage khali hai ya cloud par naya data hai, to update karein
+                        if (semesters.length === 0 && cloudSemesters.length > 0) {
+                            handleSyncUpdate(cloudSemesters);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Cloud loading error:", error);
+                }
+            }
+        };
+        loadInitialData();
+    }, [user?.uid]); // Jab user login ho, tabhi chale
+
+    // --- 2. CLOUD PAR DATA SAVE KARNA (For Laptop Sync) ---
+    // Hum aik wrapper function banate hain jo  ko call karega aur Firestore ko bhi
+    const handleSyncUpdate = async (newSemesters) => {
+        onUpdate(newSemesters);
+
+        // Phir Firestore mein save karein
+        if (user?.uid) {
+            try {
+                await db.collection('users').doc(user.uid).set({
+                    semesters: newSemesters,
+                    lastUpdated: new Date()
+                }, { merge: true });
+                console.log("Cloud synced!");
+            } catch (error) {
+                console.error("Cloud sync error:", error);
+            }
+        }
+    };
+    // --- 2. LOAD FROM CLOUD (Mobile ke liye) ---
+    useEffect(() => {
+        const loadInitialData = async () => {
+            if (user?.uid && semesters.length === 0) { 
+                try {
+                    const docRef = db.collection('users').doc(user.uid);
+                    const docSnap = await docRef.get();
+                    if (docSnap.exists) {
+                        const cloudData = docSnap.data().semesters || [];
+                        handleSyncUpdate(cloudData); // Screen par data dikhao
+                    }
+                } catch (error) { console.error("Error fetching cloud data:", error); }
+            }
+        };
+        loadInitialData();
+    }, [user?.uid]);
     return (
 
         <div className={`min-h-screen ${theme.bg} transition-colors duration-500 pb-32 font-sans`}>
@@ -214,7 +271,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
 
                         {/* ACTION BUTTONS */}
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12">
-                            <button onClick={() => onUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white w-full sm:w-auto px-10 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:scale-[1.02] transition-all flex items-center justify-center gap-2`}>
+                            <button onClick={() => handleSyncUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white w-full sm:w-auto px-10 py-4 rounded-2xl font-bold shadow-xl shadow-indigo-200 hover:scale-[1.02] transition-all flex items-center justify-center gap-2`}>
                                 <span>+ Add Semester</span>
                             </button>
                             <input type="file" ref={fileInputRef} onChange={async (e) => {
@@ -223,7 +280,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                 setIsParsing(true);
                                 try {
                                     const data = await parseSuperiorTranscript(file);
-                                    if (data) onUpdate([...semesters, ...data]);
+                                    if (data) handleSyncUpdate([...semesters, ...data]);
                                 } finally { setIsParsing(false); e.target.value = null; }
                             }} accept="application/pdf" className="hidden" />
                             <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white text-slate-700 w-full sm:w-auto px-10 py-4 rounded-2xl font-bold border border-slate-200 shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
@@ -232,7 +289,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                             <button
                                 onClick={() => {
                                     if (window.confirm("Are you sure you want to delete ALL semesters?")) {
-                                        onUpdate([]);
+                                        handleSyncUpdate([]);
                                     }
                                 }}
                                 className="bg-rose-50 text-rose-600 w-full sm:w-auto px-10 py-4 rounded-2xl font-bold border border-rose-100 shadow-sm hover:bg-rose-100 transition-all flex items-center justify-center gap-2"
@@ -272,7 +329,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                         </AnimatePresence>
                                                     </div>
                                                 </div>
-                                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this semester?")) onUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl">
+                                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete this semester?")) handleSyncUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:bg-rose-50 rounded-xl">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                                 </button>
                                             </div>
@@ -284,12 +341,12 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                             const stats = getSubjectStats(sub);
                                                             return (
                                                                 <div key={sub.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 relative group">
-                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects.splice(subIdx, 1); onUpdate(n); }} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                                                                    <input className="bg-transparent font-bold text-sm outline-none mb-3 block w-full focus:text-indigo-600" value={sub.title} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].title = e.target.value; onUpdate(n); }} placeholder="Subject Name" />
+                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects.splice(subIdx, 1); handleSyncUpdate(n); }} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                                                    <input className="bg-transparent font-bold text-sm outline-none mb-3 block w-full focus:text-indigo-600" value={sub.title} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].title = e.target.value; handleSyncUpdate(n); }} placeholder="Subject Name" />
 
                                                                     <div className="flex gap-1 p-1 bg-slate-200/50 rounded-lg mb-4">
-                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode !== 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].mode = 'simple'; onUpdate(n); }}>Simple</button>
-                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode === 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].mode = 'assessment'; onUpdate(n); }}>Assessment</button>
+                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode !== 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].mode = 'simple'; handleSyncUpdate(n); }}>Simple</button>
+                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode === 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].mode = 'assessment'; handleSyncUpdate(n); }}>Assessment</button>
                                                                     </div>
 
                                                                     {sub.mode === 'assessment' ? (
@@ -305,13 +362,13 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                             )}
                                                                             {sub.assessments?.map((asm, aIdx) => (
                                                                                 <div key={asm.id} className="grid grid-cols-12 gap-1 items-center">
-                                                                                    <select className="col-span-5 bg-white border border-slate-100 rounded-lg p-1 text-[9px] font-bold outline-none" value={asm.type} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; onUpdate(n); }}>
+                                                                                    <select className="col-span-5 bg-white border border-slate-100 rounded-lg p-1 text-[9px] font-bold outline-none" value={asm.type} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; handleSyncUpdate(n); }}>
                                                                                         {assessmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                                                                     </select>
-                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[9px] font-bold outline-none" value={asm.obt} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; onUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.total} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; onUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.weight} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; onUpdate(n); }} />
-                                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); onUpdate(n); }} className="col-span-1 text-rose-300 hover:text-rose-500 transition-colors">✕</button>
+                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[9px] font-bold outline-none" value={asm.obt} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.total} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px] outline-none" value={asm.weight} onChange={(e) => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); handleSyncUpdate(n); }} className="col-span-1 text-rose-300 hover:text-rose-500 transition-colors">✕</button>
                                                                                 </div>
                                                                             ))}
 
@@ -321,7 +378,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                     const n = JSON.parse(JSON.stringify(semesters));
                                                                                     if (!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = [];
                                                                                     n[sIdx].subjects[subIdx].assessments.push({ id: Date.now(), type: 'Quiz', weight: 10, total: 100, obt: 0 });
-                                                                                    onUpdate(n);
+                                                                                    handleSyncUpdate(n);
                                                                                 }}
                                                                                 className="w-full py-2 border border-dashed border-indigo-200 rounded-xl text-[9px] font-black uppercase text-indigo-500 hover:bg-indigo-50 transition-all mt-2"
                                                                             >
@@ -341,7 +398,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                     onChange={(e) => {
                                                                                         const n = JSON.parse(JSON.stringify(semesters));
                                                                                         n[sIdx].subjects[subIdx].ch = e.target.value;
-                                                                                        onUpdate(n);
+                                                                                        handleSyncUpdate(n);
                                                                                     }}
                                                                                 />
                                                                             </div>
@@ -353,7 +410,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                     onClick={() => {
                                                                                         const n = JSON.parse(JSON.stringify(semesters));
                                                                                         n[sIdx].subjects[subIdx].isManual = false;
-                                                                                        onUpdate(n);
+                                                                                        handleSyncUpdate(n);
                                                                                     }}
                                                                                 >By Grade</button>
                                                                                 <button
@@ -361,7 +418,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                     onClick={() => {
                                                                                         const n = JSON.parse(JSON.stringify(semesters));
                                                                                         n[sIdx].subjects[subIdx].isManual = true;
-                                                                                        onUpdate(n);
+                                                                                        handleSyncUpdate(n);
                                                                                     }}
                                                                                 >By Marks</button>
                                                                             </div>
@@ -379,7 +436,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                                 const marks = gradeToMarks[e.target.value] || 0;
                                                                                                 const n = JSON.parse(JSON.stringify(semesters));
                                                                                                 n[sIdx].subjects[subIdx].simpleObt = marks;
-                                                                                                onUpdate(n);
+                                                                                                handleSyncUpdate(n);
                                                                                             }}
                                                                                         >
                                                                                             {Object.keys(gradeToMarks).map(g => <option key={g} value={g}>{g}</option>)}
@@ -401,7 +458,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                                             onChange={(e) => {
                                                                                                 const n = JSON.parse(JSON.stringify(semesters));
                                                                                                 n[sIdx].subjects[subIdx].simpleObt = e.target.value;
-                                                                                                onUpdate(n);
+                                                                                                handleSyncUpdate(n);
                                                                                             }}
                                                                                         />
                                                                                         <p className="text-[7px] text-indigo-300 font-black uppercase italic tracking-widest">Type Exact Score</p>
@@ -417,7 +474,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
                                                                 </div>
                                                             );
                                                         })}
-                                                        <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects.push({ id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); onUpdate(n); }} className="py-12 border-2 border-dashed border-slate-200 rounded-4xl text-slate-300 font-bold hover:bg-slate-50 transition-all hover:text-indigo-600 hover:border-indigo-600">+ Add Course</button>
+                                                        <button onClick={() => { const n = JSON.parse(JSON.stringify(semesters)); n[sIdx].subjects.push({ id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); handleSyncUpdate(n); }} className="py-12 border-2 border-dashed border-slate-200 rounded-4xl text-slate-300 font-bold hover:bg-slate-50 transition-all hover:text-indigo-600 hover:border-indigo-600">+ Add Course</button>
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>
