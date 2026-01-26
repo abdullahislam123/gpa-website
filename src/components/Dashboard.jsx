@@ -38,7 +38,8 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     });
 
     const assessmentTypes = ['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Others', ...customAssessments];
-    const activeTheme = localStorage.getItem('userTheme') || 'professional';
+    // Dashboard.jsx ke andar
+const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme') || 'professional');
     const theme = themes[activeTheme] || themes.professional;
 
     // --- 3. MASTER SYNC FUNCTION (NO RECURSION) ---
@@ -241,8 +242,8 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
 
             <footer className="py-12 text-center text-gray-400">
                 <div className="flex justify-center gap-8 mb-6">
-                    <a href="#" target="_blank" className="hover:text-black transition-colors"><GithubIcon className="w-6 h-6" /></a>
-                    <a href="#" target="_blank" className="hover:text-blue-600 transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
+                    <a href="https://github.com/abdullahislam123" target="_blank" className="hover:text-black transition-colors"><GithubIcon className="w-6 h-6" /></a>
+                    <a href="https://www.linkedin.com/in/abdullah-islam-81730b2a1/" target="_blank" className="hover:text-blue-600 transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
                 </div>
                 <p className="text-[10px] uppercase tracking-[0.4em] font-black mb-2">Superior Academic Portal — 2026</p>
                 <p className="text-sm">Crafted with ❤️ by <b>Abdullah</b></p>
@@ -262,7 +263,6 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     );
 };
 
-// --- 6. SETTINGS PANEL ---
 const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessments }) => {
     const [name, setName] = useState(user?.displayName || "");
     const [loading, setLoading] = useState(false);
@@ -276,26 +276,33 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
     };
 
     return (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20">
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden flex flex-col sm:flex-row items-center gap-6">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 mt-4">
+            {/* Profile Section */}
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl flex flex-col sm:flex-row items-center gap-6">
                 <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${name || 'S'}&background=6366f1&color=fff`} className="w-24 h-24 rounded-3xl border-4 border-indigo-50 shadow-md object-cover" />
                 <div className="flex-1 w-full space-y-4">
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
                         <div className="flex gap-2 mt-1">
-                            <input className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-400 focus:bg-white transition-all shadow-inner" value={name} onChange={e => setName(e.target.value)} />
-                            <button onClick={async () => { setLoading(true); try { await user.updateProfile({ displayName: name.trim() }); alert("Name Updated!"); } finally { setLoading(false); } }} className="bg-slate-900 text-white px-6 rounded-2xl text-[10px] font-black uppercase hover:bg-black transition-all shadow-lg active:scale-95">{loading ? '...' : 'Save'}</button>
+                            <input className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-400" value={name} onChange={e => setName(e.target.value)} />
+                            <button onClick={async () => { setLoading(true); try { await user.updateProfile({ displayName: name.trim() }); alert("Name Updated!"); } finally { setLoading(false); } }} className="bg-slate-900 text-white px-6 rounded-2xl text-[10px] font-black uppercase">{loading ? '...' : 'Save'}</button>
                         </div>
-                    </div>
+                    </div>  
+                </div>
+                {/* email */}
+                <div className="flex-1 w-full space-y-4">
                     <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                        <p className="text-sm font-bold text-slate-500 bg-slate-50/80 p-3 px-4 rounded-2xl border border-slate-100 shadow-sm italic">{user?.email}</p>
+                        <div className="flex gap-2 mt-1">
+                            <input className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-400" value={user?.email} readOnly />
+                        </div>
                     </div>
                 </div>
             </div>
 
+            {/* Theme Section */}
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
-                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-6 tracking-[0.2em]">Interface Theme</h3>
+                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-6 tracking-widest">Interface Theme</h3>
                 <div className="grid grid-cols-2 gap-3">
                     {Object.values(themes).map(t => (
                         <button key={t.id} onClick={() => { setActiveTheme(t.id); localStorage.setItem('userTheme', t.id); }} className={`p-4 rounded-2xl border-2 text-[10px] font-black transition-all ${activeTheme === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-600 shadow-sm' : 'border-slate-50 text-slate-400'}`}>{t.name}</button>
@@ -303,23 +310,22 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
                 </div>
             </div>
 
+            {/* Custom Labels Section */}
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
-                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-6 tracking-[0.2em]">Custom Assessment Labels</h3>
+                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-6 tracking-widest">Custom Labels</h3>
                 <div className="flex gap-2 mb-8">
-                    <input className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:border-indigo-400 shadow-inner" placeholder="Add new (e.g. Lab Task)" value={newAsm} onChange={e => setNewAsm(e.target.value)} />
-                    <button onClick={() => { if (!newAsm.trim()) return; const updated = [...customAssessments, newAsm.trim()]; saveToLocal(updated); setNewAsm(""); }} className="bg-indigo-600 text-white px-8 rounded-2xl text-[10px] font-black uppercase shadow-lg transition-all">Add</button>
+                    <input className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold outline-none" placeholder="Add new (e.g. Lab Task)" value={newAsm} onChange={e => setNewAsm(e.target.value)} />
+                    <button onClick={() => { if(!newAsm.trim()) return; const updated = [...customAssessments, newAsm.trim()]; saveToLocal(updated); setNewAsm(""); }} className="bg-indigo-600 text-white px-8 rounded-2xl text-[10px] font-black uppercase">Add</button>
                 </div>
                 <div className="flex flex-wrap gap-3">
                     {customAssessments.map((item, idx) => (
-                        <div key={idx} className="bg-white px-4 py-3 rounded-2xl flex items-center gap-3 border border-slate-200 shadow-sm hover:border-indigo-200 transition-all">
+                        <div key={idx} className="bg-white px-4 py-2 rounded-2xl flex items-center gap-3 border border-slate-200 shadow-sm hover:border-indigo-200 transition-all">
                             {editIndex === idx ? (
-                                <input className="w-24 bg-indigo-50 px-2 py-0.5 rounded-lg text-[10px] font-black outline-none border border-indigo-200" value={editText} onChange={e => setEditText(e.target.value)} autoFocus onBlur={() => { if (!editText.trim()) { setEditIndex(null); return; } const updated = [...customAssessments]; updated[idx] = editText; saveToLocal(updated); setEditIndex(null); }} />
+                                <input className="w-24 bg-indigo-50 px-2 py-0.5 rounded-lg text-[10px] font-black outline-none border border-indigo-200" value={editText} onChange={e => setEditText(e.target.value)} autoFocus onBlur={() => { if(!editText.trim()) { setEditIndex(null); return; } const updated = [...customAssessments]; updated[idx] = editText; saveToLocal(updated); setEditIndex(null); }} />
                             ) : (
-                                <><span className="text-[10px] font-black text-indigo-600 uppercase tracking-tighter">{item}</span>
-                                    <div className="flex items-center gap-1 border-l pl-2 border-slate-100">
-                                        <button onClick={() => { setEditIndex(idx); setEditText(item); }} className="text-slate-300 hover:text-indigo-500 p-1"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
-                                        <button onClick={() => saveToLocal(customAssessments.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-rose-500 p-1">✕</button>
-                                    </div></>
+                                <><span className="text-[10px] font-black text-indigo-600 uppercase">{item}</span>
+                                <button onClick={() => { setEditIndex(idx); setEditText(item); }} className="text-slate-300 hover:text-indigo-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
+                                <button onClick={() => saveToLocal(customAssessments.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-rose-500">✕</button></>
                             )}
                         </div>
                     ))}
