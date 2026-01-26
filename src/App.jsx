@@ -13,7 +13,6 @@ function App() {
   // ✅ 1. Hooks MUST come first
   useEffect(() => {
     console.log("Auth Listener initialized...");
-    
     const unsubscribe = auth.onAuthStateChanged(async (u) => {
       try {
         setUser(u);
@@ -65,7 +64,7 @@ function App() {
         <Dashboard 
           user={user} 
           semesters={semesters} 
-          handleUpdate={handleUpdate} 
+          onUpdate={handleUpdate} 
         />
       )}
     </div>
