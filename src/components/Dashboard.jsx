@@ -31,6 +31,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
     const [isParsing, setIsParsing] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
     const [showGradeTable, setShowGradeTable] = useState(false);
+    const [showFeedback, setShowFeedback] = useState(false);
     const [collapsedSems, setCollapsedSems] = useState([]);
     const [customAssessments, setCustomAssessments] = useState(() => {
         const saved = localStorage.getItem(`custom_asm_${user?.uid}`);
@@ -104,7 +105,11 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
 
     return (
         <div className={`min-h-screen ${theme.bg} transition-colors duration-500 pb-32 font-sans`}>
-            <UpdateModal isOpen={showUpdateModal} onClose={() => { localStorage.setItem('app_version', CURRENT_VERSION); setShowUpdateModal(false); }} />
+            <FeedbackModal 
+                isOpen={showFeedback} 
+                onClose={() => setShowFeedback(false)} 
+                user={user} 
+            />
 
             {/* TOP NAVIGATION */}
             <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b px-4 py-3 flex justify-between items-center shadow-sm">
@@ -126,7 +131,7 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
             <main className="max-w-6xl mx-auto px-4 relative z-10">
                 {showSettings ? (
                     <div className="mt-8">
-                        <SettingsPanel user={user} themes={themes} activeTheme={activeTheme} setActiveTheme={setActiveTheme} customAssessments={customAssessments} setCustomAssessments={setCustomAssessments} />
+                        <SettingsPanel user={user} showFeedback={showFeedback} setShowFeedback={setShowFeedback} themes={themes} activeTheme={activeTheme} setActiveTheme={setActiveTheme} customAssessments={customAssessments} setCustomAssessments={setCustomAssessments}  />
                     </div>
                 ) : (
                     <>
@@ -137,7 +142,7 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
 
                         {/* MASTER BUTTONS (FIXED CLEAR ALL) */}
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-12 -mt-20">
-                            <button onClick={() => handleSyncUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white px-10 py-4 rounded-2xl font-bold shadow-xl`}>+ Add Semester</button>
+                            <button onClick={() => handleSyncUpdate([...semesters, { id: Date.now(), name: `Semester ${semesters.length + 1}`, subjects: [] }])} className={`${theme.primary} text-white px-10 py-4 rounded-2xl font-bold shadow-xl hover:cursor-pointer`}>+ Add Semester</button>
 
                             <input type="file" ref={fileInputRef} onChange={async (e) => {
                                 const file = e.target.files[0]; if (!file) return;
@@ -145,9 +150,9 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
                                 try { const data = await parseSuperiorTranscript(file); if (data) handleSyncUpdate([...semesters, ...data]); }
                                 finally { setIsParsing(false); e.target.value = null; }
                             }} accept="application/pdf" className="hidden" />
-                            <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white border text-slate-700 px-10 py-4 rounded-2xl font-bold shadow-sm">{isParsing ? '...' : '📄 Import PDF'}</button>
+                            <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white border text-slate-700 px-10 py-4 rounded-2xl font-bold shadow-sm hover:cursor-pointer">{isParsing ? '...' : '📄 Import PDF'}</button>
 
-                            <button onClick={() => { if (window.confirm("ARE YOU SURE? This clears all data everywhere.")) handleSyncUpdate([]); }} className="bg-rose-50 text-rose-600 px-10 py-4 rounded-2xl font-bold border border-rose-100 shadow-sm">Clear All</button>
+                            <button onClick={() => { if (window.confirm("ARE YOU SURE? This clears all data everywhere.")) handleSyncUpdate([]); }} className="bg-rose-50 text-rose-600 px-10 py-4 rounded-2xl font-bold border border-rose-100 shadow-sm hover:cursor-pointer">Clear All</button>
                         </div>
 
                         <LayoutGroup>
@@ -165,7 +170,7 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
                                                     <h3 className="font-black text-slate-800 uppercase text-[11px] tracking-widest">{sem.name}</h3>
                                                     {isCollapsed && <span className="text-[10px] font-black text-indigo-600">⭐ {semSummary.sgpa} SGPA</span>}
                                                 </div>
-                                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete semester?")) handleSyncUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2">🗑️</button>
+                                                <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete semester?")) handleSyncUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:cursor-pointer">❌</button>
                                             </div>
 
                                             <AnimatePresence>
@@ -263,7 +268,8 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
     );
 };
 
-const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessments }) => {
+const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessmentsshowFeedback,
+setShowFeedback }) => {
     const [name, setName] = useState(user?.displayName || "");
     const [loading, setLoading] = useState(false);
     const [newAsm, setNewAsm] = useState("");
@@ -331,6 +337,21 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
                     ))}
                 </div>
             </div>
+            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
+                <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-4 tracking-widest">Support & Feedback</h3>
+                <p className="text-xs text-slate-500 mb-6">Found a bug or have a suggestion for Superior Portal?</p>
+                <button 
+                    onClick={onOpenFeedback}
+                    className="w-full bg-indigo-50 text-indigo-600 py-4 rounded-2xl font-black text-[10px] uppercase border border-indigo-100 hover:bg-indigo-100 transition-all"
+                >
+                    Send Feedback / Report Issue
+                </button>
+            </div>
+            <FeedbackModal 
+                isOpen={showFeedback} 
+                onClose={() => setShowFeedback(false)} 
+                user={user} 
+            />
         </motion.div>
     );
 };
