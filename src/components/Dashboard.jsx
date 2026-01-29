@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { auth, db } from '../services/firebase';
+import FeedbackModal from './FeedbackModal';
 import { calculateGrade, parseSuperiorTranscript } from '../services/pdfParser';
 import UpdateModal from './UpdateModal';
 
@@ -268,8 +269,7 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
     );
 };
 
-const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessmentsshowFeedback,
-setShowFeedback }) => {
+const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessments,showFeedback,setShowFeedback }) => {
     const [name, setName] = useState(user?.displayName || "");
     const [loading, setLoading] = useState(false);
     const [newAsm, setNewAsm] = useState("");
@@ -341,7 +341,7 @@ setShowFeedback }) => {
                 <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-4 tracking-widest">Support & Feedback</h3>
                 <p className="text-xs text-slate-500 mb-6">Found a bug or have a suggestion for Superior Portal?</p>
                 <button 
-                    onClick={onOpenFeedback}
+                    onClick={()=>setShowFeedback(true)}
                     className="w-full bg-indigo-50 text-indigo-600 py-4 rounded-2xl font-black text-[10px] uppercase border border-indigo-100 hover:bg-indigo-100 transition-all"
                 >
                     Send Feedback / Report Issue

@@ -28,10 +28,10 @@ const FeedbackModal = ({ isOpen, onClose, user }) => {
 
             // 2. Send Email via EmailJS
             await emailjs.send(
-                'YOUR_SERVICE_ID', 
-                'YOUR_TEMPLATE_ID', 
+                'service_excel1q', 
+                'template_1jyj3xp', 
                 feedbackData, 
-                'YOUR_PUBLIC_KEY'
+                'Dp1U6Z_SVVP1aeWyt'
             );
 
             alert("Feedback sent successfully! ❤️");
