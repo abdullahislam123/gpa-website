@@ -11,39 +11,46 @@ const FeedbackModal = ({ isOpen, onClose, user }) => {
     if (!isOpen) return null;
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
+    e.preventDefault();
+    setLoading(true);
 
-        const feedbackData = {
-            from_name: user?.displayName || "Anonymous Student",
-            from_email: user?.email || "No Email",
-            message: msg,
-            type: type,
-            date: new Date().toLocaleString()
-        };
-
-        try {
-            // 1. Backup in Firebase (Unlimited)
-            await db.collection('feedback').add(feedbackData);
-
-            // 2. Send Email via EmailJS
-            await emailjs.send(
-                'service_excel1q', 
-                'template_1jyj3xp', 
-                feedbackData, 
-                'Dp1U6Z_SVVP1aeWyt'
-            );
-
-            alert("Feedback sent successfully! ❤️");
-            setMsg("");
-            onClose();
-        } catch (error) {
-            console.error("Error:", error);
-            alert("Something went wrong, but we saved your feedback in our database.");
-        } finally {
-            setLoading(false);
-        }
+    const feedbackData = {
+        from_name: user?.displayName || "Anonymous Student",
+        from_email: user?.email || "No Email",
+        message: msg,
+        type: type,
+        date: new Date().toLocaleString()
     };
+
+    try {
+        // 1. Firebase Write
+        await db.collection('feedback').add(feedbackData);
+        console.log("Database updated!");
+
+        // 2. EmailJS Send
+        await emailjs.send(
+            'service_excel1q', 
+            'template_1jyj3xp', 
+            feedbackData, 
+            'Dp1U6Z_SVVP1aeWyt'
+        );
+
+        alert("Feedback sent successfully! ❤️");
+        setMsg("");
+        onClose();
+    } catch (error) {
+        console.error("Error Detail:", error);
+        
+        // Error handling ko specific banayen
+        if (error.code === 'permission-denied') {
+            alert("Database Error: Aapke paas feedback bhejne ki permission nahi hai.");
+        } else {
+            alert("Kuch masla hua hai. Baraye meharbani dobara koshish karen.");
+        }
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
