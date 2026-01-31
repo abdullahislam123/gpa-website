@@ -20,7 +20,20 @@ const themes = {
     minimal: { id: 'minimal', name: 'Minimal Soft', primary: 'bg-emerald-500', text: 'text-emerald-600', border: 'border-slate-100', header: 'from-white to-emerald-50', accent: 'bg-emerald-50', bg: 'bg-white', card: 'bg-slate-50' }
 };
 
-const gradeColors = { 'A': 'text-emerald-600 font-bold', 'A-': 'text-teal-600', 'B+': 'text-blue-600', 'F': 'text-rose-600 animate-pulse font-black', 'default': 'text-slate-500' };
+const gradeColors = {
+    'A': 'text-emerald-600 font-bold',
+    'A-': 'text-teal-600',
+    'B+': 'text-blue-600',
+    'B': 'text-blue-500',
+    'B-': 'text-indigo-500',
+    'C+': 'text-violet-600',
+    'C': 'text-violet-500',
+    'C-': 'text-violet-400',
+    'D+': 'text-amber-600',
+    'D': 'text-amber-500',
+    'F': 'text-rose-600 font-black',
+    'default': 'text-slate-500'
+};
 const gradeToMarks = { 'A': 85, 'A-': 80, 'B+': 75, 'B': 71, 'B-': 68, 'C+': 64, 'C': 61, 'C-': 58, 'D+': 54, 'D': 50, 'F': 0 };
 
 const Dashboard = ({ user, semesters, onUpdate }) => {
@@ -41,7 +54,7 @@ const Dashboard = ({ user, semesters, onUpdate }) => {
 
     const assessmentTypes = ['Quiz', 'Assignment', 'Mid Exam', 'Final Exam', 'Project', 'Viva', 'Others', ...customAssessments];
     // Dashboard.jsx ke andar
-const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme') || 'professional');
+    const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme') || 'professional');
     const theme = themes[activeTheme] || themes.professional;
 
     // --- 3. MASTER SYNC FUNCTION (NO RECURSION) ---
@@ -106,22 +119,22 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
 
     return (
         <div className={`min-h-screen ${theme.bg} transition-colors duration-500 pb-32 font-sans`}>
-            <FeedbackModal 
-                isOpen={showFeedback} 
-                onClose={() => setShowFeedback(false)} 
-                user={user} 
+            <FeedbackModal
+                isOpen={showFeedback}
+                onClose={() => setShowFeedback(false)}
+                user={user}
             />
 
             {/* TOP NAVIGATION */}
             <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b px-4 py-3 flex justify-between items-center shadow-sm">
                 <div className="flex items-center gap-3">
                     <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${user?.displayName || 'Student'}&background=6366f1&color=fff`} className="w-9 h-9 rounded-full border" alt="profile" />
-                    <span className="font-bold text-slate-800 text-sm">{showSettings ? "User Settings" : (user?.displayName || 'Abdullah')}</span>
+                    <span className="font-bold text-slate-800 text-lg">{showSettings ? "User Settings" : (user?.displayName || 'Abdullah')}</span>
                 </div>
                 {!showSettings && semesters.length > 0 && (
                     <div className="flex flex-col items-center">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total CGPA</span>
-                        <span className="text-2xl font-black text-indigo-600 leading-none">{cgpa}</span>
+                        <span className="text-[14px] font-black text-violet-600 tracking-widest leading-none mb-1">Total CGPA</span>
+                        <span className="text-2xl font-black text-violet-600 leading-none">{cgpa}</span>
                     </div>
                 )}
                 <div className="w-9 h-9" />
@@ -132,13 +145,13 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
             <main className="max-w-6xl mx-auto px-4 relative z-10">
                 {showSettings ? (
                     <div className="mt-8">
-                        <SettingsPanel user={user} showFeedback={showFeedback} setShowFeedback={setShowFeedback} themes={themes} activeTheme={activeTheme} setActiveTheme={setActiveTheme} customAssessments={customAssessments} setCustomAssessments={setCustomAssessments}  />
+                        <SettingsPanel user={user} showFeedback={showFeedback} setShowFeedback={setShowFeedback} themes={themes} activeTheme={activeTheme} setActiveTheme={setActiveTheme} customAssessments={customAssessments} setCustomAssessments={setCustomAssessments} />
                     </div>
                 ) : (
                     <>
                         <header className={`bg-linear-to-br ${theme.header} -mx-4 pt-12 pb-24 px-6 rounded-b-[3.5rem] text-center border-b border-slate-200/50 mb-12`}>
                             <h1 className="text-4xl font-black text-slate-900 tracking-tight">Academic Portal</h1>
-                            <p className="text-slate-600 mt-2 font-medium">Hello <span className="text-indigo-600 font-black">{user?.displayName?.split(' ')[0]}</span>, track your progress!</p>
+                            <p className="text-slate-600 mt-2 font-medium">Welcome <span className="text-indigo-600 font-black">{user?.displayName?.split(' ')[0]}</span>, track your progress!</p>
                         </header>
 
                         {/* MASTER BUTTONS (FIXED CLEAR ALL) */}
@@ -151,7 +164,7 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
                                 try { const data = await parseSuperiorTranscript(file); if (data) handleSyncUpdate([...semesters, ...data]); }
                                 finally { setIsParsing(false); e.target.value = null; }
                             }} accept="application/pdf" className="hidden" />
-                            <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white border text-slate-700 px-10 py-4 rounded-2xl font-bold shadow-sm hover:cursor-pointer">{isParsing ? '...' : '📄 Import PDF'}</button>
+                            <button onClick={() => fileInputRef.current.click()} disabled={isParsing} className="bg-white border border-violet-800 text-violet-800 px-10 py-4 rounded-2xl font-bold shadow-sm hover:cursor-pointer">{isParsing ? '...' : '📄 Import PDF'}</button>
 
                             <button onClick={() => { if (window.confirm("ARE YOU SURE? This clears all data everywhere.")) handleSyncUpdate([]); }} className="bg-rose-50 text-rose-600 px-10 py-4 rounded-2xl font-bold border border-rose-100 shadow-sm hover:cursor-pointer">Clear All</button>
                         </div>
@@ -162,62 +175,69 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
                                     const isCollapsed = collapsedSems.includes(sem.id);
                                     const semSummary = calculateSGPAData(sem.subjects);
                                     return (
-                                        <motion.div layout key={sem.id} className={`${theme.card} rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden`}>
+                                        <motion.div layout key={sem.id} className={`${theme.card} rounded-[2rem] border-2 border-violet-800 shadow-sm overflow-hidden`}>
                                             <div className="p-5 flex justify-between items-center cursor-pointer" onClick={() => setCollapsedSems(prev => prev.includes(sem.id) ? prev.filter(i => i !== sem.id) : [...prev, sem.id])}>
                                                 <div className="flex items-center gap-4">
                                                     <motion.div animate={{ rotate: isCollapsed ? 0 : 90 }} className="p-1.5 rounded-xl bg-indigo-600 text-white shadow-md">
                                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
                                                     </motion.div>
-                                                    <h3 className="font-black text-slate-800 uppercase text-[11px] tracking-widest">{sem.name}</h3>
-                                                    {isCollapsed && <span className="text-[10px] font-black text-indigo-600">⭐ {semSummary.sgpa} SGPA</span>}
+                                                    <h3 className="font-black text-slate-800 uppercase text-[15px] tracking-widest">{sem.name}</h3>
+                                                    {isCollapsed && <span className="text-[12px] font-black text-indigo-600">⭐ {semSummary.sgpa} SGPA</span>}
                                                 </div>
                                                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Delete semester?")) handleSyncUpdate(semesters.filter(s => s.id !== sem.id)); }} className="text-slate-300 hover:text-rose-500 transition-colors p-2 hover:cursor-pointer">❌</button>
                                             </div>
 
                                             <AnimatePresence>
                                                 {!isCollapsed && (
-                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 pt-6 border-t">
+                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 pt-6 border-t">
                                                         {sem.subjects.map((sub, subIdx) => {
                                                             const stats = getSubjectStats(sub);
                                                             return (
-                                                                <div key={sub.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 relative group">
-                                                                    <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); handleSyncUpdate(n); }} className="absolute top-4 right-4 text-slate-300 hover:text-rose-500">✕</button>
-                                                                    <input className="bg-transparent font-bold text-sm w-full outline-none mb-4 focus:text-indigo-600 transition-all" value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; handleSyncUpdate(n); }} placeholder="Subject Name" />
+                                                                <div key={sub.id} className="bg-violet-50 rounded-3xl p-5 border border-violet-500 relative group">
+                                                                    <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.splice(subIdx, 1); handleSyncUpdate(n); }} className="absolute top-4 right-4 text-red-800 hover:text-red-500">✕</button>
+                                                                    <input className="bg-transparent font-bold text-md w-full outline-none mb-4 focus:text-indigo-600 transition-all" value={sub.title} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].title = e.target.value; handleSyncUpdate(n); }} placeholder="Subject Name" />
 
                                                                     {/* MODE TOGGLE */}
                                                                     <div className="flex gap-1 p-1 bg-slate-200/50 rounded-lg mb-4">
-                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode !== 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; handleSyncUpdate(n); }}>Simple</button>
-                                                                        <button className={`flex-1 py-1 text-[8px] font-black uppercase rounded-md transition-all ${sub.mode === 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; handleSyncUpdate(n); }}>Assessment</button>
+                                                                        <button className={`flex-1 py-1 text-[12px] font-black uppercase rounded-md transition-all ${sub.mode !== 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-black-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'simple'; handleSyncUpdate(n); }}>Simple</button>
+                                                                        <button className={`flex-1 py-1 text-[12px] font-black uppercase rounded-md transition-all ${sub.mode === 'assessment' ? 'bg-white text-indigo-600 shadow-sm' : 'text-black-400'}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].mode = 'assessment'; handleSyncUpdate(n); }}>Assessment</button>
                                                                     </div>
 
                                                                     {sub.mode === 'assessment' ? (
                                                                         <div className="space-y-2">
+                                                                            <div className="grid grid-cols-12 gap-1 px-1 mb-1">
+                                                                                <span className="col-span-4 text-[10px] font-black text-violet-600 uppercase tracking-wider pl-1">Type</span>
+                                                                                <span className="col-span-2 text-[10px] font-black text-violet-600 uppercase tracking-wider text-center">Obt</span>
+                                                                                <span className="col-span-2 text-[10px] font-black text-violet-600 uppercase tracking-wider text-center">Total</span>
+                                                                                <span className="col-span-2 text-[10px] font-black text-violet-600 uppercase tracking-wider text-center">Wgt</span>
+                                                                                <span className="col-span-2"></span>
+                                                                            </div>
                                                                             {sub.assessments?.map((asm, aIdx) => (
-                                                                                <div key={asm.id} className="grid grid-cols-12 gap-1 items-center">
-                                                                                    <select className="col-span-4 bg-white border border-slate-100 rounded-lg p-1 text-[9px] font-bold" value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; handleSyncUpdate(n); }}>
+                                                                                <div key={asm.id} className="grid grid-cols-12 gap-1 items-center text-[12px] font-bold">
+                                                                                    <select className="col-span-4 bg-white border border-slate-100 rounded-lg p-1 text-[12px] font-bold" value={asm.type} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].type = e.target.value; handleSyncUpdate(n); }}>
                                                                                         {assessmentTypes.map(t => <option key={t} value={t}>{t}</option>)}
                                                                                     </select>
-                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[9px] font-bold" value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; handleSyncUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px]" value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; handleSyncUpdate(n); }} />
-                                                                                    <input type="number" className="col-span-3 bg-white border border-slate-100 rounded-lg p-1 text-center text-[9px]" value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; handleSyncUpdate(n); }} />
-                                                                                    <button onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); handleSyncUpdate(n); }} className="col-span-1 text-rose-300">✕</button>
+                                                                                    <input type="number" className="col-span-2 bg-indigo-50 rounded-lg p-1 text-center text-[12px] font-bold" value={asm.obt} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].obt = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[12px]" value={asm.total} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].total = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <input type="number" className="col-span-2 bg-white border border-slate-100 rounded-lg p-1 text-center text-[12px]" value={asm.weight} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments[aIdx].weight = e.target.value; handleSyncUpdate(n); }} />
+                                                                                    <button onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].assessments.splice(aIdx, 1); handleSyncUpdate(n); }} className="col-span-2 text-rose-300">✕</button>
                                                                                 </div>
                                                                             ))}
-                                                                            <button onClick={() => { const n = [...semesters]; if (!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({ id: Date.now(), type: 'Quiz', weight: 10, total: 100, obt: 0 }); handleSyncUpdate(n); }} className="w-full py-2 border border-dashed border-indigo-200 rounded-xl text-[9px] font-black text-indigo-500">+ Row</button>
+                                                                            <button onClick={() => { const n = [...semesters]; if (!n[sIdx].subjects[subIdx].assessments) n[sIdx].subjects[subIdx].assessments = []; n[sIdx].subjects[subIdx].assessments.push({ id: Date.now(), type: 'Quiz', weight: 10, total: 100, obt: 0 }); handleSyncUpdate(n); }} className="w-full py-2 border border-dashed border-violet-500 rounded-xl text-[15px] font-black text-indigo-500">+ Row</button>
                                                                         </div>
                                                                     ) : (
                                                                         <div className="space-y-4">
                                                                             <div className="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                                                                                <span className="text-[8px] font-black text-slate-400">CREDIT HOURS</span>
-                                                                                <input type="number" className="w-12 bg-slate-50 rounded-lg font-bold text-center text-indigo-600 text-sm" value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; handleSyncUpdate(n); }} />
+                                                                                <span className="text-[12px] font-black text-violet-600">CREDIT HOURS</span>
+                                                                                <input type="number" className="w-12 bg-violet-50 rounded-lg font-bold text-center text-indigo-600 text-sm" value={sub.ch} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].ch = e.target.value; handleSyncUpdate(n); }} />
                                                                             </div>
                                                                             <div className="bg-indigo-50/50 rounded-2xl p-4 text-center">
                                                                                 <div className="flex gap-1 p-1 bg-slate-100 rounded-lg mb-3 max-w-[120px] mx-auto">
-                                                                                    <button className={`flex-1 text-[7px] font-bold ${!sub.isManual ? 'bg-white' : ''}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].isManual = false; handleSyncUpdate(n); }}>Grade</button>
-                                                                                    <button className={`flex-1 text-[7px] font-bold ${sub.isManual ? 'bg-white' : ''}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].isManual = true; handleSyncUpdate(n); }}>Marks</button>
+                                                                                    <button className={`flex-1 text-[14px] font-bold ${!sub.isManual ? 'bg-violet-300 rounded-lg' : ''}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].isManual = false; handleSyncUpdate(n); }}>Grade</button>
+                                                                                    <button className={`flex-1 text-[14px] font-bold ${sub.isManual ? 'bg-violet-300 rounded-lg' : ''}`} onClick={() => { const n = [...semesters]; n[sIdx].subjects[subIdx].isManual = true; handleSyncUpdate(n); }}>Marks</button>
                                                                                 </div>
                                                                                 {!sub.isManual ? (
-                                                                                    <select className="bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-indigo-600 text-sm appearance-none shadow-md" value={Object.keys(gradeToMarks).find(key => gradeToMarks[key] === parseFloat(sub.simpleObt)) || "F"} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = gradeToMarks[e.target.value]; handleSyncUpdate(n); }}>
+                                                                                    <select className="bg-white border-2 border-indigo-100 rounded-xl px-4 py-2 font-black text-violet-600 text-lg appearance-none shadow-md" value={Object.keys(gradeToMarks).find(key => gradeToMarks[key] === parseFloat(sub.simpleObt)) || "F"} onChange={(e) => { const n = [...semesters]; n[sIdx].subjects[subIdx].simpleObt = gradeToMarks[e.target.value]; handleSyncUpdate(n); }}>
                                                                                         {Object.keys(gradeToMarks).map(g => <option key={g} value={g}>{g}</option>)}
                                                                                     </select>
                                                                                 ) : (
@@ -226,14 +246,14 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
                                                                             </div>
                                                                         </div>
                                                                     )}
-                                                                    <div className="flex justify-between pt-3 border-t border-slate-100 text-[10px] font-bold mt-4">
-                                                                        <span>Grade: <span className={gradeColors[stats.gInfo.g]}>{stats.gInfo.g} ({stats.gInfo.p})</span></span>
-                                                                        <span className="text-indigo-600">{stats.score.toFixed(0)}%</span>
+                                                                    <div className="flex justify-between pt-3 border-t border-slate-100 text-[14px] font-bold mt-4">
+                                                                        <span>Grade: <span className={gradeColors[stats.gInfo.g] || gradeColors['default']}>{stats.gInfo.g} ({stats.gInfo.p})</span></span>
+                                                                        <span className="text-violet-600">{stats.score.toFixed(0)}%</span>
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
-                                                        <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.push({ id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); handleSyncUpdate(n); }} className="py-12 border-2 border-dashed border-slate-200 rounded-4xl text-slate-300 font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all">+ Add Course</button>
+                                                        <button onClick={() => { const n = [...semesters]; n[sIdx].subjects.push({ id: Date.now(), title: '', ch: 3, simpleObt: 0, mode: 'simple', assessments: [] }); handleSyncUpdate(n); }} className="py-4 border-2 border-dashed border-violet-500 rounded-4xl text-violet-500 font-bold hover:bg-indigo-50 hover:text-indigo-600 transition-all">+ Add Course</button>
                                                     </motion.div>
                                                 )}
                                             </AnimatePresence>
@@ -248,28 +268,28 @@ const [activeTheme, setActiveTheme] = useState(localStorage.getItem('userTheme')
 
             <footer className="py-12 text-center text-gray-400">
                 <div className="flex justify-center gap-8 mb-6">
-                    <a href="https://github.com/abdullahislam123" target="_blank" className="hover:text-black transition-colors"><GithubIcon className="w-6 h-6" /></a>
-                    <a href="https://www.linkedin.com/in/abdullah-islam-81730b2a1/" target="_blank" className="hover:text-blue-600 transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
+                    <a href="https://github.com/abdullahislam123" target="_blank" className="text-black transition-colors"><GithubIcon className="w-6 h-6" /></a>
+                    <a href="https://www.linkedin.com/in/abdullah-islam-81730b2a1/" target="_blank" className="text-blue-600 transition-colors"><LinkedinIcon className="w-6 h-6" /></a>
                 </div>
-                <p className="text-[10px] uppercase tracking-[0.4em] font-black mb-2">Superior Academic Portal — 2026</p>
-                <p className="text-sm">Crafted with ❤️ by <b>Abdullah</b></p>
+                <p className="text-[14px] font-black text-violet-600 mb-2">Superior Academic Portal <br />- 2026 -</p>
+                <p className="text-[12px]">Crafted with ❤️ by <b>Abdullah</b></p>
             </footer>
 
             {/* FLOATING NAV */}
             <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-6">
-                <nav className="bg-slate-900/90 backdrop-blur-xl border border-white/10 p-2 rounded-3xl shadow-2xl flex items-center gap-2">
-                    <button onClick={() => setShowSettings(false)} className={`p-4 rounded-2xl flex flex-col items-center ${!showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><span className="text-xl">🏠</span><span className="text-[7px] font-black mt-1">HOME</span></button>
-                    <button onClick={() => setShowGradeTable(true)} className="p-4 rounded-2xl text-slate-400 flex flex-col items-center"><span className="text-xl">📊</span><span className="text-[7px] font-black mt-1">SCALE</span></button>
-                    <button onClick={() => setShowSettings(true)} className={`p-4 rounded-2xl flex flex-col items-center ${showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><span className="text-xl">⚙️</span><span className="text-[7px] font-black mt-1">PROFILE</span></button>
+                <nav className="bg-slate-900/90 backdrop-blur-xl border border-white/10 px-1 py-1 rounded-2xl shadow-xl flex items-center gap-2">
+                    <button onClick={() => setShowSettings(false)} className={`p-4 rounded-2xl flex flex-col items-center ${!showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><span className="text-xl">🏠</span><span className="text-[12px] font-black mt-1">HOME</span></button>
+                    <button onClick={() => setShowGradeTable(true)} className="p-4 rounded-2xl text-slate-400 flex flex-col items-center"><span className="text-xl">📊</span><span className="text-[12px] font-black mt-1">SCALE</span></button>
+                    <button onClick={() => setShowSettings(true)} className={`p-4 rounded-2xl flex flex-col items-center ${showSettings ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400'}`}><span className="text-xl">⚙️</span><span className="text-[12px] font-black mt-1">PROFILE</span></button>
                     <div className="w-[1px] h-8 bg-white/10 mx-1" />
-                    <button onClick={() => auth.signOut()} className="p-4 rounded-2xl text-rose-400 flex flex-col items-center"><span className="text-xl">🚪</span><span className="text-[7px] font-black mt-1">EXIT</span></button>
+                    <button onClick={() => auth.signOut()} className="p-4 rounded-2xl text-rose-400 flex flex-col items-center"><span className="text-xl">🚪</span><span className="text-[12px] font-black mt-1">EXIT</span></button>
                 </nav>
             </div>
         </div>
     );
 };
 
-const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessments,showFeedback,setShowFeedback }) => {
+const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssessments, setCustomAssessments, showFeedback, setShowFeedback }) => {
     const [name, setName] = useState(user?.displayName || "");
     const [loading, setLoading] = useState(false);
     const [newAsm, setNewAsm] = useState("");
@@ -284,23 +304,23 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 mt-4">
             {/* Profile Section */}
-            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl flex flex-col sm:flex-row items-center gap-6">
+            <div className="bg-white p-8 rounded-[2.5rem] border border-violet-800 shadow-xl flex flex-col sm:flex-row items-center gap-6">
                 <img src={user?.photoURL || `https://ui-avatars.com/api/?name=${name || 'S'}&background=6366f1&color=fff`} className="w-24 h-24 rounded-3xl border-4 border-indigo-50 shadow-md object-cover" />
                 <div className="flex-1 w-full space-y-4">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-                        <div className="flex gap-2 mt-1">
-                            <input className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-400" value={name} onChange={e => setName(e.target.value)} />
-                            <button onClick={async () => { setLoading(true); try { await user.updateProfile({ displayName: name.trim() }); alert("Name Updated!"); } finally { setLoading(false); } }} className="bg-slate-900 text-white px-6 rounded-2xl text-[10px] font-black uppercase">{loading ? '...' : 'Save'}</button>
+                        <label className="text-[10px] font-black text-violet-800 uppercase tracking-widest ml-1">Full Name</label>
+                        <div className="flex gap-1 mt-1">
+                            <input className="flex-1 bg-slate-50 border border-violet-800 rounded-2xl p-0 py-3 text-sm font-bold outline-none" value={name} onChange={e => setName(e.target.value)} />
+                            <button onClick={async () => { setLoading(true); try { await user.updateProfile({ displayName: name.trim() }); alert("Name Updated!"); } finally { setLoading(false); } }} className="bg-slate-900 text-white px-2 py-2 rounded-2xl text-[12px] font-black">{loading ? '...' : 'Save'}</button>
                         </div>
-                    </div>  
+                    </div>
                 </div>
                 {/* email */}
                 <div className="flex-1 w-full space-y-4">
                     <div>
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                        <label className="text-[10px] font-black text-violet-800 uppercase tracking-widest ml-1">Email</label>
                         <div className="flex gap-2 mt-1">
-                            <input className="flex-1 bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:border-indigo-400" value={user?.email} readOnly />
+                            <input className="flex-1 bg-slate-50 border border-violet-800 rounded-2xl px-4 py-3 text-[12px] font-bold outline-none focus:border-violet-400" value={user?.email} readOnly />
                         </div>
                     </div>
                 </div>
@@ -320,18 +340,18 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
                 <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-6 tracking-widest">Custom Labels</h3>
                 <div className="flex gap-2 mb-8">
-                    <input className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold outline-none" placeholder="Add new (e.g. Lab Task)" value={newAsm} onChange={e => setNewAsm(e.target.value)} />
-                    <button onClick={() => { if(!newAsm.trim()) return; const updated = [...customAssessments, newAsm.trim()]; saveToLocal(updated); setNewAsm(""); }} className="bg-indigo-600 text-white px-8 rounded-2xl text-[10px] font-black uppercase">Add</button>
+                    <input className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-1 py-4 w-[170px] text-xs font-bold outline-none" placeholder="Add new (e.g. Lab Task)" value={newAsm} onChange={e => setNewAsm(e.target.value)} />
+                    <button onClick={() => { if (!newAsm.trim()) return; const updated = [...customAssessments, newAsm.trim()]; saveToLocal(updated); setNewAsm(""); }} className="bg-indigo-600 text-white px-4 rounded-2xl text-[14px] font-black uppercase">Add</button>
                 </div>
                 <div className="flex flex-wrap gap-3">
                     {customAssessments.map((item, idx) => (
                         <div key={idx} className="bg-white px-4 py-2 rounded-2xl flex items-center gap-3 border border-slate-200 shadow-sm hover:border-indigo-200 transition-all">
                             {editIndex === idx ? (
-                                <input className="w-24 bg-indigo-50 px-2 py-0.5 rounded-lg text-[10px] font-black outline-none border border-indigo-200" value={editText} onChange={e => setEditText(e.target.value)} autoFocus onBlur={() => { if(!editText.trim()) { setEditIndex(null); return; } const updated = [...customAssessments]; updated[idx] = editText; saveToLocal(updated); setEditIndex(null); }} />
+                                <input className="w-24 bg-indigo-50 px-2 py-0.5 rounded-lg text-[10px] font-black outline-none border border-indigo-200" value={editText} onChange={e => setEditText(e.target.value)} autoFocus onBlur={() => { if (!editText.trim()) { setEditIndex(null); return; } const updated = [...customAssessments]; updated[idx] = editText; saveToLocal(updated); setEditIndex(null); }} />
                             ) : (
                                 <><span className="text-[10px] font-black text-indigo-600 uppercase">{item}</span>
-                                <button onClick={() => { setEditIndex(idx); setEditText(item); }} className="text-slate-300 hover:text-indigo-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
-                                <button onClick={() => saveToLocal(customAssessments.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-rose-500">✕</button></>
+                                    <button onClick={() => { setEditIndex(idx); setEditText(item); }} className="text-slate-300 hover:text-indigo-500"><svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg></button>
+                                    <button onClick={() => saveToLocal(customAssessments.filter((_, i) => i !== idx))} className="text-slate-300 hover:text-rose-500">✕</button></>
                             )}
                         </div>
                     ))}
@@ -340,17 +360,17 @@ const SettingsPanel = ({ user, themes, activeTheme, setActiveTheme, customAssess
             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-xl">
                 <h3 className="text-[10px] font-black uppercase text-indigo-600 mb-4 tracking-widest">Support & Feedback</h3>
                 <p className="text-xs text-slate-500 mb-6">Found a bug or have a suggestion for Superior Portal?</p>
-                <button 
-                    onClick={()=>setShowFeedback(true)}
+                <button
+                    onClick={() => setShowFeedback(true)}
                     className="w-full bg-indigo-50 text-indigo-600 py-4 rounded-2xl font-black text-[10px] uppercase border border-indigo-100 hover:bg-indigo-100 transition-all"
                 >
                     Send Feedback / Report Issue
                 </button>
             </div>
-            <FeedbackModal 
-                isOpen={showFeedback} 
-                onClose={() => setShowFeedback(false)} 
-                user={user} 
+            <FeedbackModal
+                isOpen={showFeedback}
+                onClose={() => setShowFeedback(false)}
+                user={user}
             />
         </motion.div>
     );
